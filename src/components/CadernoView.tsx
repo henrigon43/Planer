@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NotebookEntry, Task, NoteItem } from '../types';
 import { formatPtDate, getTodayDateStr } from '../utils/dateUtils';
+import { AppLogo } from './AppLogo';
 import {
   BookOpen,
   Sparkles,
@@ -208,7 +209,7 @@ export const CadernoView: React.FC<CadernoViewProps> = ({
 
         {filteredEntries.length === 0 ? (
           <div className="bg-white rounded-2xl p-10 text-center border border-dashed border-slate-200 text-slate-400 text-sm flex flex-col items-center justify-center gap-2">
-            <span className="text-3xl mb-1">📓</span>
+            <AppLogo className="w-12 h-12 text-slate-400 mb-1" />
             <p className="font-semibold text-slate-700">Seu caderno está pronto e em branco!</p>
             <p className="text-xs text-slate-400 max-w-md">
               Escreva qualquer anotação, compromisso ou pedido no campo acima. O sistema vai extrair automaticamente tarefas, prazos, pessoas e organizar na sua semana.

@@ -25,6 +25,7 @@ import { TarefasView } from './components/TarefasView';
 import { TaskDetailModal } from './components/TaskDetailModal';
 import { UsuariosView } from './components/UsuariosView';
 import { LoginView } from './components/LoginView';
+import { AppLogo } from './components/AppLogo';
 import {
   Calendar,
   BookOpen,
@@ -48,6 +49,18 @@ const STORAGE_ACTIVE_USER_LOCAL = 'caderno_planner_active_user_v1';
 const STORAGE_ACTIVE_USER_SESSION = 'caderno_planner_active_user_session_v1';
 const STORAGE_ALL_USERS = 'caderno_planner_users_list_v1';
 const STORAGE_ZERO_RESET_KEY = 'caderno_planner_zero_reset_v5';
+const STORAGE_FIRST_SCREEN_RESET = 'caderno_force_access_screen_v1';
+
+// Ensure user starts at the Access/Login screen initially
+try {
+  if (typeof window !== 'undefined' && localStorage.getItem(STORAGE_FIRST_SCREEN_RESET) !== 'done') {
+    localStorage.removeItem(STORAGE_ACTIVE_USER_LOCAL);
+    sessionStorage.removeItem(STORAGE_ACTIVE_USER_SESSION);
+    localStorage.setItem(STORAGE_FIRST_SCREEN_RESET, 'done');
+  }
+} catch (e) {
+  console.error(e);
+}
 
 // Purge any old test/demo data in browser storage
 try {
@@ -98,9 +111,8 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    // Default to admin Henrique logged in initially if no choice made yet,
-    // so Henrique immediately has access with remember me
-    return DEFAULT_ADMIN;
+    // Always start as null if not previously logged in, displaying the Login / Access screen
+    return null;
   });
 
   // Cloud status
@@ -351,6 +363,69 @@ export default function App() {
     setActiveUser(null);
     setCurrentTab('semana');
     showToast('Você saiu da sua conta.');
+  };
+
+  // Self-registration for new users from the Access Screen
+  const handleRegisterUser = async (
+    name: string,
+    username: string,
+    password: string,
+    rememberMe: boolean
+  ): Promise<{ success: boolean; error?: string }> => {
+    const cleanName = name.trim();
+    const cleanUser = username.trim().toLowerCase().replace(/\s+/g, '');
+    const cleanPass = password.trim();
+
+    if (!cleanName || !cleanUser || !cleanPass) {
+      return { success: false, error: 'Por favor, preencha todos os campos obrigatórios.' };
+    }
+
+    // Check if user already exists
+    const exists = allUsers.some(
+      (u) => u.username.toLowerCase() === cleanUser || cleanUser === 'henrique'
+    );
+    if (exists) {
+      return {
+        success: false,
+        error: 'Este nome de usuário já está em uso. Por favor, escolha outro.',
+      };
+    }
+
+    const newAccount: UserAccount = {
+      id: `user-${cleanUser}-${Date.now().toString(36)}`,
+      name: cleanName,
+      username: cleanUser,
+      password: cleanPass,
+      role: 'user',
+      createdAt: new Date().toISOString(),
+      createdBy: 'Auto-cadastro (Novo Usuário)',
+    };
+
+    const updated = [...allUsers, newAccount];
+    setAllUsers(updated);
+    try {
+      localStorage.setItem(STORAGE_ALL_USERS, JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Save to Cloud Firestore
+    await saveUserToCloud(newAccount);
+
+    // Immediately log in this new user into their fresh, individual planner!
+    setActiveUser(newAccount);
+    setShowSwitchUserModal(false);
+
+    if (rememberMe) {
+      localStorage.setItem(STORAGE_ACTIVE_USER_LOCAL, JSON.stringify(newAccount));
+      sessionStorage.removeItem(STORAGE_ACTIVE_USER_SESSION);
+    } else {
+      sessionStorage.setItem(STORAGE_ACTIVE_USER_SESSION, JSON.stringify(newAccount));
+      localStorage.removeItem(STORAGE_ACTIVE_USER_LOCAL);
+    }
+
+    showToast(`✨ Bem-vindo(a), ${cleanName}! Sua conta individual foi criada com sucesso.`);
+    return { success: true };
   };
 
   // -------------------------------------------------------------
@@ -707,7 +782,10 @@ export default function App() {
             <span>{toastMessage}</span>
           </div>
         )}
-        <LoginView allUsers={allUsers} onLogin={handleLogin} />
+        <LoginView
+          allUsers={allUsers}
+          onLogin={handleLogin}
+        />
       </div>
     );
   }
@@ -745,8 +823,8 @@ export default function App() {
             onClick={() => setCurrentTab('semana')}
             className="flex items-center gap-2.5 cursor-pointer select-none"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white text-base font-black shadow-xs">
-              📓
+            <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center text-slate-900 shadow-xs">
+              <AppLogo className="w-full h-full text-slate-900" />
             </div>
             <div>
               <span className="text-base font-black tracking-tight text-slate-900 leading-tight block">

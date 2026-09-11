@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { UserAccount } from '../types';
+import { AppLogo } from './AppLogo';
 import {
-  Lock,
   User,
   Key,
   ShieldCheck,
-  CheckCircle2,
   AlertCircle,
   LogIn,
   Laptop,
   Smartphone,
-  Sparkles,
 } from 'lucide-react';
 
 interface LoginViewProps {
@@ -20,13 +18,18 @@ interface LoginViewProps {
   isModal?: boolean;
 }
 
-export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: LoginViewProps) {
+export function LoginView({
+  allUsers,
+  onLogin,
+  onCancel,
+  isModal = false,
+}: LoginViewProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true); // Default to true as requested for seamless mobile/pc
+  const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -45,11 +48,11 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
   };
 
   const cardContent = (
-    <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden p-7 sm:p-9 animate-fadeIn">
+    <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden p-6 sm:p-8 animate-fadeIn">
       {/* Brand Header */}
       <div className="text-center mb-6">
-        <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-700 to-violet-600 flex items-center justify-center text-white text-2xl shadow-md mb-3">
-          📓
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-white border border-slate-200/80 p-2.5 flex items-center justify-center text-slate-900 shadow-sm mb-3">
+          <AppLogo className="w-full h-full text-slate-900" />
         </div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">
           Caderno & Planner
@@ -59,11 +62,11 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
         </p>
       </div>
 
-      {/* Notice about privacy & admin */}
-      <div className="mb-6 p-3 bg-indigo-50/80 border border-indigo-100 rounded-2xl text-xs text-indigo-900 flex items-start gap-2.5">
+      {/* Notice about individual privacy */}
+      <div className="mb-6 p-3.5 bg-indigo-50/80 border border-indigo-100 rounded-2xl text-xs text-indigo-950 flex items-start gap-2.5">
         <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
         <div className="text-[11px] leading-relaxed">
-          <strong>Acesso Individual:</strong> Cada usuário visualiza exclusivamente suas próprias tarefas e anotações no planner privativo.
+          <strong>Acesso Individual:</strong> Cada usuário visualiza exclusivamente suas próprias tarefas e anotações.
         </div>
       </div>
 
@@ -74,8 +77,8 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
         </div>
       )}
 
-      {/* Login Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Direct Login Form */}
+      <form onSubmit={handleLoginSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-bold text-slate-700 mb-1.5">
             Nome de Usuário (Login):
@@ -113,8 +116,7 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
           </div>
         </div>
 
-        {/* Option: Deixar Logado (Remember me) - requested specifically */}
-        <div className="pt-1">
+        <div className="pt-0.5">
           <label
             htmlFor="chk-remember-me"
             className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-slate-100/70 cursor-pointer select-none transition-colors"
@@ -127,7 +129,7 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
               className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
             />
             <div className="text-xs">
-              <span className="font-bold text-slate-800 block">
+              <span className="font-bold text-slate-800 block leading-tight">
                 Deixar logado neste aparelho
               </span>
               <span className="text-[11px] text-slate-500 block">
@@ -151,16 +153,16 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
         <button
           type="button"
           onClick={onCancel}
-          className="w-full mt-3 py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+          className="w-full mt-3 py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
         >
           Cancelar e fechar
         </button>
       )}
 
       {/* Devices Footer */}
-      <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+      <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-[11px] text-slate-400">
         <Laptop className="w-3.5 h-3.5" />
-        <span>Sincronizado automaticamente entre PC e Celular</span>
+        <span>Sincronizado na Nuvem • Celular e Computador</span>
         <Smartphone className="w-3.5 h-3.5" />
       </div>
     </div>
@@ -175,7 +177,7 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
+    <div className="min-h-[85vh] flex items-center justify-center p-4">
       {cardContent}
     </div>
   );

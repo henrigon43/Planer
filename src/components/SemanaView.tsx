@@ -24,6 +24,8 @@ import {
   Flame,
   User,
   Check,
+  CalendarClock,
+  History,
 } from 'lucide-react';
 
 interface SemanaViewProps {
@@ -54,28 +56,64 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
   const [quickAddDay, setQuickAddDay] = useState<string | null>(null);
   const [quickAddText, setQuickAddText] = useState('');
   const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
+  const [overdueFilter, setOverdueFilter] = useState<'all' | 'previous_week' | 'this_week'>('all');
 
   const todayStr = getTodayDateStr();
   const weekDays = getWeekDays(currentWeekRefDate);
   const weekLabel = getWeekLabel(currentWeekRefDate);
 
+  const mondayOfCurrentWeek = weekDays[0]?.dateStr || todayStr;
+
   // Calculate statistics across tasks in this week or global
   const weekDateStrs = new Set(weekDays.map((d) => d.dateStr));
   const weekTasks = tasks.filter((t) => weekDateStrs.has(t.targetDate));
 
+  // 1. Tasks that rolled over strictly from PREVIOUS weeks (targetDate < mondayOfCurrentWeek)
+  const previousWeekTasks = tasks.filter(
+    (t) => t.status !== 'concluido' && t.targetDate < mondayOfCurrentWeek
+  );
+
+  // 2. Tasks overdue from earlier days of THIS week (targetDate >= mondayOfCurrentWeek and targetDate < todayStr)
+  const earlierThisWeekTasks = tasks.filter(
+    (t) =>
+      t.status !== 'concluido' &&
+      t.targetDate >= mondayOfCurrentWeek &&
+      isDateOverdue(t.targetDate, todayStr)
+  );
+
+  // 3. Combined all overdue tasks that rolled over or are delayed
+  const allRolledOverTasks = tasks.filter(
+    (t) =>
+      t.status !== 'concluido' &&
+      (t.targetDate < mondayOfCurrentWeek || isDateOverdue(t.targetDate, todayStr))
+  );
+
   const totalCompleted = weekTasks.filter((t) => t.status === 'concluido').length;
   const totalPending = weekTasks.filter((t) => t.status === 'pendente' && !isDateOverdue(t.targetDate, todayStr)).length;
-  const totalOverdue = tasks.filter(
-    (t) => t.status !== 'concluido' && isDateOverdue(t.targetDate, todayStr)
-  ).length;
+  const totalOverdue = allRolledOverTasks.length;
 
   const totalRelevant = weekTasks.length;
   const completionPercentage = totalRelevant > 0 ? Math.round((totalCompleted / totalRelevant) * 100) : 0;
 
-  // Overdue tasks list for the "PENDÊNCIAS" section
-  const overdueTasks = tasks.filter(
-    (t) => t.status !== 'concluido' && isDateOverdue(t.targetDate, todayStr)
-  );
+  // Filtered list to display in the section
+  const displayedOverdueTasks =
+    overdueFilter === 'previous_week'
+      ? previousWeekTasks
+      : overdueFilter === 'this_week'
+      ? earlierThisWeekTasks
+      : allRolledOverTasks;
+
+  const handlePullAllToToday = () => {
+    allRolledOverTasks.forEach((t) => {
+      onMoveToToday(t.id);
+    });
+  };
+
+  const handlePullAllToMonday = () => {
+    allRolledOverTasks.forEach((t) => {
+      onRescheduleTask(t.id, mondayOfCurrentWeek);
+    });
+  };
 
   const handleQuickAddSubmit = (dayDateStr: string) => {
     if (quickAddText.trim()) {
@@ -166,7 +204,11 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
           </div>
           <div>
             <p className="text-xl font-black text-rose-900">{totalOverdue}</p>
-            <p className="text-xs font-medium text-rose-700">atrasadas</p>
+            <p className="text-xs font-medium text-rose-700">
+              {previousWeekTasks.length > 0
+                ? `${previousWeekTasks.length} da semana anterior`
+                : 'atrasadas'}
+            </p>
           </div>
         </div>
 
@@ -184,102 +226,238 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
         </div>
       </div>
 
-      {/* 🔴 ÁREA "PENDÊNCIAS" - Crucial requirement from prompt */}
-      {overdueTasks.length > 0 && (
-        <div
-          id="pendencias-area"
-          className="bg-gradient-to-r from-rose-50 via-rose-50/80 to-amber-50/40 border-2 border-rose-200/90 rounded-2xl p-4 md:p-5 shadow-xs"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🔴</span>
-              <h2 className="text-sm md:text-base font-bold text-rose-950 uppercase tracking-wide">
-                Pendências ({overdueTasks.length})
-              </h2>
-              <span className="text-xs bg-rose-200/80 text-rose-900 font-medium px-2 py-0.5 rounded-full">
-                Não concluídas
-              </span>
+      {/* 🔴 ÁREA DE TAREFAS ATRASADAS: O que ficou da semana anterior para essa */}
+      <div id="tarefas-atrasadas-area" className="transition-all">
+        {allRolledOverTasks.length === 0 ? (
+          <div className="bg-white border border-emerald-200/80 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <span>Tarefas Atrasadas & Semana Anterior</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    Tudo em Dia
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Nenhuma tarefa ficou pendente da semana anterior para esta. Todas as pendências estão resolvidas!
+                </p>
+              </div>
             </div>
-            <p className="hidden sm:block text-xs text-rose-800/80">
-              Uma tarefa nunca simplesmente desaparece — resolva ou reprograme.
-            </p>
+            <div className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200/60">
+              0 pendências atrasadas
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {overdueTasks.map((t) => (
-              <div
-                key={t.id}
-                className="bg-white rounded-xl p-3 border border-rose-200 shadow-xs flex flex-col justify-between gap-2.5 hover:border-rose-300 transition-all"
-              >
-                <div className="flex items-start gap-2.5">
-                  <button
-                    id={`pendencia-check-${t.id}`}
-                    onClick={() => onToggleTaskStatus(t.id)}
-                    className="mt-0.5 w-5 h-5 rounded-md border-2 border-rose-400 hover:bg-emerald-500 hover:border-emerald-500 flex items-center justify-center transition-colors group"
-                    title="Concluir pendência"
-                  >
-                    <Check className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100" />
-                  </button>
-
-                  <div
-                    className="flex-1 cursor-pointer"
-                    onClick={() => onOpenTaskDetail(t)}
-                  >
-                    <p className="text-xs font-semibold text-slate-900 hover:text-indigo-600 line-clamp-1">
-                      {t.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-500">
-                      <span className="text-rose-600 font-medium">
-                        Prazo: {formatPtDate(t.targetDate)}
-                      </span>
-                      {t.person && (
-                        <span className="flex items-center gap-0.5 text-slate-600">
-                          <User className="w-3 h-3" /> {t.person}
-                        </span>
-                      )}
-                    </div>
+        ) : (
+          <div className="bg-gradient-to-r from-rose-50/90 via-amber-50/70 to-orange-50/50 border-2 border-rose-300/80 rounded-2xl p-4 sm:p-5 shadow-xs">
+            {/* Header com contadores e botões em lote */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4 pb-3 border-b border-rose-200/70">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="w-7 h-7 rounded-lg bg-rose-600 text-white flex items-center justify-center shadow-xs">
+                    <CalendarClock className="w-4 h-4" />
                   </div>
-                </div>
-
-                {/* Action buttons: "→ Jogar para hoje" ou "→ Reprogramar" */}
-                <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
-                  <button
-                    id={`jogar-para-hoje-${t.id}`}
-                    onClick={() => onMoveToToday(t.id)}
-                    className="flex-1 text-[11px] font-semibold py-1 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors text-center"
-                  >
-                    → Jogar para hoje
-                  </button>
-
-                  {rescheduleTaskId === t.id ? (
-                    <input
-                      type="date"
-                      autoFocus
-                      defaultValue={todayStr}
-                      onBlur={() => setRescheduleTaskId(null)}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          onRescheduleTask(t.id, e.target.value);
-                          setRescheduleTaskId(null);
-                        }
-                      }}
-                      className="text-[11px] py-0.5 px-1 border border-slate-300 rounded"
-                    />
-                  ) : (
-                    <button
-                      id={`reprogramar-${t.id}`}
-                      onClick={() => setRescheduleTaskId(t.id)}
-                      className="text-[11px] font-semibold py-1 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-                    >
-                      → Reprogramar
-                    </button>
+                  <h2 className="text-base font-black text-rose-950 tracking-tight">
+                    Tarefas Atrasadas (Ficaram da Semana Anterior para Esta)
+                  </h2>
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-rose-600 text-white shadow-xs">
+                    {allRolledOverTasks.length} {allRolledOverTasks.length === 1 ? 'pendência' : 'pendências'}
+                  </span>
+                  {previousWeekTasks.length > 0 && (
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
+                      {previousWeekTasks.length} da semana anterior
+                    </span>
                   )}
                 </div>
+                <p className="text-xs text-rose-800/90 mt-1">
+                  Tarefas que não foram concluídas na semana anterior e foram repassadas para esta semana para não serem esquecidas.
+                </p>
               </div>
-            ))}
+
+              {/* Ações Rápidas em Lote e Filtros */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {allRolledOverTasks.length > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handlePullAllToToday}
+                      className="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                      title="Move todas as pendências atrasadas para o dia de hoje"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Puxar todas p/ Hoje</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handlePullAllToMonday}
+                      className="text-xs font-bold px-2.5 py-1.5 rounded-xl bg-white hover:bg-rose-100 text-rose-900 border border-rose-300 shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+                      title="Mover todas para Segunda-feira desta semana"
+                    >
+                      <span>Puxar todas p/ Seg</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Filtro caso haja tarefas de semanas anteriores E dias anteriores desta semana */}
+                {previousWeekTasks.length > 0 && earlierThisWeekTasks.length > 0 && (
+                  <div className="flex items-center p-0.5 bg-rose-200/70 rounded-lg text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setOverdueFilter('all')}
+                      className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
+                        overdueFilter === 'all'
+                          ? 'bg-white text-rose-900 shadow-xs'
+                          : 'text-rose-800 hover:text-rose-950'
+                      }`}
+                    >
+                      Todas ({allRolledOverTasks.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOverdueFilter('previous_week')}
+                      className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
+                        overdueFilter === 'previous_week'
+                          ? 'bg-white text-rose-900 shadow-xs'
+                          : 'text-rose-800 hover:text-rose-950'
+                      }`}
+                    >
+                      Semana Anterior ({previousWeekTasks.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOverdueFilter('this_week')}
+                      className={`px-2 py-1 rounded-md transition-all cursor-pointer ${
+                        overdueFilter === 'this_week'
+                          ? 'bg-white text-rose-900 shadow-xs'
+                          : 'text-rose-800 hover:text-rose-950'
+                      }`}
+                    >
+                      Desta Semana ({earlierThisWeekTasks.length})
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Grid com os cards das tarefas que ficaram pendentes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {displayedOverdueTasks.map((t) => {
+                const isFromPreviousWeek = t.targetDate < mondayOfCurrentWeek;
+
+                return (
+                  <div
+                    key={t.id}
+                    className="bg-white rounded-xl p-3.5 border border-rose-200 shadow-xs flex flex-col justify-between gap-3 hover:border-rose-400 hover:shadow-md transition-all"
+                  >
+                    <div>
+                      {/* Selo identificando a origem (Semana anterior vs atrasada nesta semana) */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        {isFromPreviousWeek ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                            <History className="w-3 h-3 text-amber-700" />
+                            Ficou da semana anterior
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-900 border border-rose-300 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3 text-rose-700" />
+                            Atrasada nesta semana
+                          </span>
+                        )}
+
+                        <span className="text-[11px] font-semibold text-slate-500">
+                          {formatPtDate(t.targetDate)}
+                        </span>
+                      </div>
+
+                      {/* Checkbox de Concluir + Título */}
+                      <div className="flex items-start gap-2.5">
+                        <button
+                          id={`pendencia-check-${t.id}`}
+                          type="button"
+                          onClick={() => onToggleTaskStatus(t.id)}
+                          className="mt-0.5 w-5 h-5 rounded-md border-2 border-rose-400 hover:bg-emerald-500 hover:border-emerald-500 flex items-center justify-center transition-colors group cursor-pointer shrink-0"
+                          title="Concluir tarefa atrasada"
+                        >
+                          <Check className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100" />
+                        </button>
+
+                        <div
+                          className="flex-1 cursor-pointer"
+                          onClick={() => onOpenTaskDetail(t)}
+                        >
+                          <p className="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 leading-snug">
+                            {t.title}
+                          </p>
+
+                          {t.person && (
+                            <div className="flex items-center gap-1 mt-1 text-[11px] text-slate-600 font-medium">
+                              <User className="w-3 h-3 text-slate-400" />
+                              <span>{t.person}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Barra de ações para puxar ou reprogramar a tarefa */}
+                    <div className="pt-2 border-t border-slate-100 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          id={`jogar-para-hoje-${t.id}`}
+                          type="button"
+                          onClick={() => onMoveToToday(t.id)}
+                          className="flex-1 text-[11px] font-bold py-1.5 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors text-center cursor-pointer"
+                          title="Puxar para o dia de hoje"
+                        >
+                          → Puxar p/ Hoje
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onRescheduleTask(t.id, mondayOfCurrentWeek)}
+                          className="text-[11px] font-bold py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 transition-colors text-center cursor-pointer"
+                          title="Mover para Segunda desta semana"
+                        >
+                          → Seg
+                        </button>
+
+                        {rescheduleTaskId === t.id ? (
+                          <input
+                            type="date"
+                            autoFocus
+                            defaultValue={todayStr}
+                            onBlur={() => setRescheduleTaskId(null)}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                onRescheduleTask(t.id, e.target.value);
+                                setRescheduleTaskId(null);
+                              }
+                            }}
+                            className="text-[11px] py-1 px-1.5 border border-slate-300 rounded-lg bg-white"
+                          />
+                        ) : (
+                          <button
+                            id={`reprogramar-${t.id}`}
+                            type="button"
+                            onClick={() => setRescheduleTaskId(t.id)}
+                            className="text-[11px] font-bold py-1.5 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+                            title="Escolher outro dia para reprogramar"
+                          >
+                            Outro dia...
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 📊 VISÃO DA SEMANA: O Quadro de Dias (SEG | TER | QUA | QUI | SEX | SÁB | DOM) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
