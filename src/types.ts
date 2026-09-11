@@ -33,6 +33,7 @@ export interface Task {
   createdDate: string; // YYYY-MM-DD
   historyLog?: string[];
   notes?: string;
+  userId?: string;
 }
 
 export interface NoteItem {
@@ -46,6 +47,7 @@ export interface NoteItem {
   associatedDate?: string | null; // Optional day on week board
   isConvertedToTask?: boolean;
   convertedTaskId?: string;
+  userId?: string;
 }
 
 export interface NotebookEntry {
@@ -57,8 +59,19 @@ export interface NotebookEntry {
   createdNotes: NoteItem[];
   clarificationQuestion?: string | null;
   userAnswer?: string;
+  userId?: string;
 }
 
-export type MainTab = 'semana' | 'caderno' | 'anotacoes' | 'tarefas';
+export interface UserAccount {
+  id: string;
+  username: string;
+  name: string;
+  password: string;
+  role: 'admin' | 'user';
+  createdAt?: string;
+  createdBy?: string;
+}
+
+export type MainTab = 'semana' | 'caderno' | 'anotacoes' | 'tarefas' | 'usuarios';
 
 export type TaskFilter = 'todos' | 'hoje' | 'semana' | 'proxima' | 'sem_prazo';

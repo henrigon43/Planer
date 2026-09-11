@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // USERS COLLECTION:
+    // Admin Henrique creates and manages user accounts
+    match /users/{userId} {
+      allow read: if isValidId(userId);
+      allow create, update, delete: if isValidId(userId);
+    }
+
+    // TASKS COLLECTION:
+    // Filtered by userId on query, synced across devices
+    match /tasks/{taskId} {
+      allow read, write: if isValidId(taskId);
+    }
+
+    // NOTES COLLECTION:
+    // Filtered by userId on query, synced across devices
+    match /notes/{noteId} {
+      allow read, write: if isValidId(noteId);
+    }
+
+    // NOTEBOOK ENTRIES COLLECTION:
+    // Filtered by userId on query, synced across devices
+    match /entries/{entryId} {
+      allow read, write: if isValidId(entryId);
+    }
+
+    // Connection test document
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

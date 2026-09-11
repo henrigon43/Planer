@@ -1,0 +1,221 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "User account with role, username and password hash/credentials",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Login username",
+          "maxLength": 50
+        },
+        "name": {
+          "type": "string",
+          "description": "Full display name",
+          "maxLength": 100
+        },
+        "password": {
+          "type": "string",
+          "description": "User password",
+          "maxLength": 100
+        },
+        "role": {
+          "type": "string",
+          "description": "User role: admin or user",
+          "enum": ["admin", "user"]
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO creation timestamp",
+          "maxLength": 50
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Username who created this user",
+          "maxLength": 50
+        }
+      },
+      "required": ["username", "password", "name", "role"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A scheduled or pending task item created from notebook or manual entry",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Task description or title",
+          "maxLength": 300
+        },
+        "person": {
+          "type": "string",
+          "description": "Person assigned or mentioned",
+          "maxLength": 100
+        },
+        "deadlineText": {
+          "type": "string",
+          "description": "Human-readable deadline (e.g., quarta-feira)",
+          "maxLength": 100
+        },
+        "targetDate": {
+          "type": "string",
+          "description": "Target date in YYYY-MM-DD format",
+          "maxLength": 20
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the task",
+          "maxLength": 50
+        },
+        "priority": {
+          "type": "string",
+          "description": "Task priority",
+          "enum": ["baixa", "media", "alta"]
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the task",
+          "enum": ["pendente", "concluido", "atrasado"]
+        },
+        "originalNoteId": {
+          "type": "string",
+          "description": "Reference ID of original notebook entry",
+          "maxLength": 128
+        },
+        "originalNoteText": {
+          "type": "string",
+          "description": "Original text written in notebook",
+          "maxLength": 2000
+        },
+        "createdDate": {
+          "type": "string",
+          "description": "Date task was created",
+          "maxLength": 20
+        },
+        "completedAt": {
+          "type": "string",
+          "description": "Timestamp when completed",
+          "maxLength": 50
+        },
+        "historyLog": {
+          "type": "array",
+          "description": "List of log history items"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID or username",
+          "maxLength": 128
+        }
+      },
+      "required": ["title", "targetDate", "status", "userId"]
+    },
+    "NoteItem": {
+      "title": "NoteItem",
+      "description": "Non-task notebook memo, idea or checklist",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type of note",
+          "enum": ["anotacao", "ideia", "importante", "checklist"]
+        },
+        "title": {
+          "type": "string",
+          "description": "Note title",
+          "maxLength": 200
+        },
+        "content": {
+          "type": "string",
+          "description": "Note body content",
+          "maxLength": 3000
+        },
+        "createdDate": {
+          "type": "string",
+          "description": "Creation date",
+          "maxLength": 20
+        },
+        "originalNotebookEntryId": {
+          "type": "string",
+          "description": "Linked notebook entry ID",
+          "maxLength": 128
+        },
+        "associatedDate": {
+          "type": "string",
+          "description": "Associated date",
+          "maxLength": 20
+        },
+        "isConvertedToTask": {
+          "type": "boolean",
+          "description": "Whether converted to task"
+        },
+        "convertedTaskId": {
+          "type": "string",
+          "description": "Created task ID if converted",
+          "maxLength": 128
+        },
+        "checklistItems": {
+          "type": "array",
+          "description": "Array of checklist item objects"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID or username",
+          "maxLength": 128
+        }
+      },
+      "required": ["title", "type", "userId"]
+    },
+    "NotebookEntry": {
+      "title": "NotebookEntry",
+      "description": "Original raw notebook entry with historical record",
+      "type": "object",
+      "properties": {
+        "rawText": {
+          "type": "string",
+          "description": "Original user input freeform text",
+          "maxLength": 5000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of entry creation",
+          "maxLength": 50
+        },
+        "displayDate": {
+          "type": "string",
+          "description": "Display date format (e.g., 11/09/2026)",
+          "maxLength": 30
+        },
+        "clarificationQuestion": {
+          "type": "string",
+          "description": "Optional AI clarification message",
+          "maxLength": 500
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID or username",
+          "maxLength": 128
+        }
+      },
+      "required": ["rawText", "displayDate", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserAccount",
+      "description": "User accounts and credentials managed by administrator Henrique"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Tasks synchronized across devices for user"
+    },
+    "/notes/{noteId}": {
+      "schema": "NoteItem",
+      "description": "Notes and ideas synchronized across devices for user"
+    },
+    "/entries/{entryId}": {
+      "schema": "NotebookEntry",
+      "description": "Notebook entries synchronized across devices for user"
+    }
+  }
+}
