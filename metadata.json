@@ -1,0 +1,6 @@
+{
+  "name": "Caderno & Planner Inteligente",
+  "description": "Planner semanal inteligente que transforma anotações livres em tarefas organizadas, prazos e controle de pendências com IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
