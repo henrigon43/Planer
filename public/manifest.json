@@ -1,0 +1,23 @@
+{
+  "name": "Caderno & Planner Inteligente",
+  "short_name": "Caderno & Planner",
+  "description": "Planner semanal inteligente que transforma anotações livres em tarefas organizadas, prazos e controle de pendências com IA.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

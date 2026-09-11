@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Solid High-Contrast Background Card for Browser Tabs and Dark Mode -->
+  <rect width="512" height="512" rx="100" fill="#ffffff" stroke="#e2e8f0" stroke-width="12" />
+
   <!-- Caderno Outline with 4 spiral rings -->
   <path
     d="M 148 105
@@ -22,19 +25,19 @@
        L 318 405
        L 318 105
        Z"
-    stroke="#000000"
-    stroke-width="16"
+    stroke="#0f172a"
+    stroke-width="18"
     stroke-linecap="round"
     stroke-linejoin="round"
     fill="#ffffff"
   />
 
   <!-- 5 horizontal lines on notebook page -->
-  <line x1="178" y1="152" x2="288" y2="152" stroke="#000000" stroke-width="16" stroke-linecap="round" />
-  <line x1="178" y1="204" x2="288" y2="204" stroke="#000000" stroke-width="16" stroke-linecap="round" />
-  <line x1="178" y1="255" x2="288" y2="255" stroke="#000000" stroke-width="16" stroke-linecap="round" />
-  <line x1="178" y1="306" x2="288" y2="306" stroke="#000000" stroke-width="16" stroke-linecap="round" />
-  <line x1="178" y1="358" x2="288" y2="358" stroke="#000000" stroke-width="16" stroke-linecap="round" />
+  <line x1="178" y1="152" x2="288" y2="152" stroke="#0f172a" stroke-width="18" stroke-linecap="round" />
+  <line x1="178" y1="204" x2="288" y2="204" stroke="#0f172a" stroke-width="18" stroke-linecap="round" />
+  <line x1="178" y1="255" x2="288" y2="255" stroke="#0f172a" stroke-width="18" stroke-linecap="round" />
+  <line x1="178" y1="306" x2="288" y2="306" stroke="#0f172a" stroke-width="18" stroke-linecap="round" />
+  <line x1="178" y1="358" x2="288" y2="358" stroke="#0f172a" stroke-width="18" stroke-linecap="round" />
 
   <!-- Pencil / Caneta to the right -->
   <!-- Top Eraser Dome -->
@@ -42,15 +45,15 @@
     d="M 364 140
        A 18 18 0 0 1 400 140
        Z"
-    stroke="#000000"
-    stroke-width="16"
+    stroke="#0f172a"
+    stroke-width="18"
     stroke-linecap="round"
     stroke-linejoin="round"
     fill="#ffffff"
   />
 
-  <!-- Ferrule Divider / Band (Solid Black) -->
-  <rect x="364" y="146" width="36" height="22" rx="2" fill="#000000" />
+  <!-- Ferrule Divider / Band (Solid) -->
+  <rect x="364" y="146" width="36" height="22" rx="2" fill="#0f172a" />
 
   <!-- Pencil Body -->
   <rect
@@ -58,8 +61,8 @@
     y="168"
     width="36"
     height="176"
-    stroke="#000000"
-    stroke-width="16"
+    stroke="#0f172a"
+    stroke-width="18"
     stroke-linejoin="round"
     fill="#ffffff"
   />
@@ -67,15 +70,15 @@
   <!-- Pencil Tip Cone -->
   <polygon
     points="364,344 382,402 400,344"
-    stroke="#000000"
-    stroke-width="16"
+    stroke="#0f172a"
+    stroke-width="18"
     stroke-linejoin="round"
     fill="#ffffff"
   />
 
-  <!-- Graphite Tip (Filled Black) -->
+  <!-- Graphite Tip (Filled) -->
   <polygon
     points="375,380 382,402 389,380"
-    fill="#000000"
+    fill="#0f172a"
   />
 </svg>

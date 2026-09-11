@@ -89,12 +89,15 @@ export function handleFirestoreError(
 // Test connection on boot as required by Firestore integration skill
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    const testRef = doc(db, 'test', 'connection');
+    await getDocFromServer(testRef);
     console.log('✅ Conexão com Firestore estabelecida com sucesso.');
     return true;
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.warn('Firestore offline ou aguardando conexão de rede.');
+    } else {
+      console.warn('Alerta na conexão do Firestore:', error);
     }
     return false;
   }
@@ -142,12 +145,12 @@ export function subscribeToUserCloudData(
         callbacks.onTasks(tasks);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.LIST, tasksPath);
+        console.error(`[Firestore Sync - ${tasksPath}] Erro no listener:`, error);
       }
     );
     unsubs.push(unsubTasks);
   } catch (err) {
-    handleFirestoreError(err, OperationType.LIST, tasksPath);
+    console.error(`[Firestore Sync - ${tasksPath}] Falha ao iniciar consulta:`, err);
   }
 
   // Subscribe to Notes
@@ -161,12 +164,12 @@ export function subscribeToUserCloudData(
         callbacks.onNotes(notes);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.LIST, notesPath);
+        console.error(`[Firestore Sync - ${notesPath}] Erro no listener:`, error);
       }
     );
     unsubs.push(unsubNotes);
   } catch (err) {
-    handleFirestoreError(err, OperationType.LIST, notesPath);
+    console.error(`[Firestore Sync - ${notesPath}] Falha ao iniciar consulta:`, err);
   }
 
   // Subscribe to Notebook Entries
@@ -182,12 +185,12 @@ export function subscribeToUserCloudData(
         callbacks.onEntries(entries);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.LIST, entriesPath);
+        console.error(`[Firestore Sync - ${entriesPath}] Erro no listener:`, error);
       }
     );
     unsubs.push(unsubEntries);
   } catch (err) {
-    handleFirestoreError(err, OperationType.LIST, entriesPath);
+    console.error(`[Firestore Sync - ${entriesPath}] Falha ao iniciar consulta:`, err);
   }
 
   return () => {

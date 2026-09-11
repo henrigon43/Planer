@@ -11,33 +11,33 @@ service cloud.firestore {
     }
 
     // USERS COLLECTION:
-    // Admin Henrique creates and manages user accounts
     match /users/{userId} {
-      allow read: if isValidId(userId);
-      allow create, update, delete: if isValidId(userId);
+      allow read: if true;
+      allow write: if isValidId(userId);
     }
 
     // TASKS COLLECTION:
-    // Filtered by userId on query, synced across devices
     match /tasks/{taskId} {
-      allow read, write: if isValidId(taskId);
+      allow read: if true;
+      allow write: if isValidId(taskId);
     }
 
     // NOTES COLLECTION:
-    // Filtered by userId on query, synced across devices
     match /notes/{noteId} {
-      allow read, write: if isValidId(noteId);
+      allow read: if true;
+      allow write: if isValidId(noteId);
     }
 
     // NOTEBOOK ENTRIES COLLECTION:
-    // Filtered by userId on query, synced across devices
     match /entries/{entryId} {
-      allow read, write: if isValidId(entryId);
+      allow read: if true;
+      allow write: if isValidId(entryId);
     }
 
     // Connection test document
-    match /test/connection {
-      allow read: if true;
+    match /test/{docId} {
+      allow read, write: if true;
     }
   }
 }
+

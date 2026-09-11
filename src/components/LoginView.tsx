@@ -9,6 +9,7 @@ import {
   LogIn,
   Laptop,
   Smartphone,
+  Info,
 } from 'lucide-react';
 
 interface LoginViewProps {
@@ -16,6 +17,7 @@ interface LoginViewProps {
   onLogin: (username: string, password: string, rememberMe: boolean) => { success: boolean; error?: string };
   onCancel?: () => void;
   isModal?: boolean;
+  onOpenSiteInfo?: () => void;
 }
 
 export function LoginView({
@@ -23,6 +25,7 @@ export function LoginView({
   onLogin,
   onCancel,
   isModal = false,
+  onOpenSiteInfo,
 }: LoginViewProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -51,12 +54,30 @@ export function LoginView({
     <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden p-6 sm:p-8 animate-fadeIn">
       {/* Brand Header */}
       <div className="text-center mb-6">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-white border border-slate-200/80 p-2.5 flex items-center justify-center text-slate-900 shadow-sm mb-3">
+        <div
+          onClick={onOpenSiteInfo}
+          className={`w-16 h-16 mx-auto rounded-2xl bg-white border border-slate-200/80 p-2.5 flex items-center justify-center text-slate-900 shadow-sm mb-3 ${
+            onOpenSiteInfo ? 'cursor-pointer hover:border-indigo-400 hover:shadow-md transition-all' : ''
+          }`}
+          title={onOpenSiteInfo ? 'Clique para ver Informações do Site' : 'Caderno & Planner'}
+        >
           <AppLogo className="w-full h-full text-slate-900" />
         </div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-          Caderno & Planner
-        </h1>
+        <div className="flex items-center justify-center gap-1.5">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            Caderno & Planner
+          </h1>
+          {onOpenSiteInfo && (
+            <button
+              type="button"
+              onClick={onOpenSiteInfo}
+              className="text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer p-0.5"
+              title="Ver Informações do Site"
+            >
+              <Info className="w-4 h-4" />
+            </button>
+          )}
+        </div>
         <p className="text-xs text-slate-500 mt-1">
           Acesse seu espaço individual e privativo
         </p>
@@ -159,11 +180,23 @@ export function LoginView({
         </button>
       )}
 
-      {/* Devices Footer */}
-      <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-[11px] text-slate-400">
-        <Laptop className="w-3.5 h-3.5" />
-        <span>Sincronizado na Nuvem • Celular e Computador</span>
-        <Smartphone className="w-3.5 h-3.5" />
+      {/* Devices & Site Info Footer */}
+      <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col items-center gap-2.5 text-[11px] text-slate-400">
+        <div className="flex items-center justify-center gap-2">
+          <Laptop className="w-3.5 h-3.5" />
+          <span>Sincronizado na Nuvem • Celular e Computador</span>
+          <Smartphone className="w-3.5 h-3.5" />
+        </div>
+        {onOpenSiteInfo && (
+          <button
+            type="button"
+            onClick={onOpenSiteInfo}
+            className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span>Informações do Site & Sobre o Planner</span>
+          </button>
+        )}
       </div>
     </div>
   );

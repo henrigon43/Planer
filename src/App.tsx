@@ -26,6 +26,7 @@ import { TaskDetailModal } from './components/TaskDetailModal';
 import { UsuariosView } from './components/UsuariosView';
 import { LoginView } from './components/LoginView';
 import { AppLogo } from './components/AppLogo';
+import { SiteInfoModal } from './components/SiteInfoModal';
 import {
   Calendar,
   BookOpen,
@@ -43,24 +44,13 @@ import {
   ShieldCheck,
   User as UserIcon,
   Trash2,
+  Info,
 } from 'lucide-react';
 
-const STORAGE_ACTIVE_USER_LOCAL = 'caderno_planner_active_user_v1';
-const STORAGE_ACTIVE_USER_SESSION = 'caderno_planner_active_user_session_v1';
+const STORAGE_ACTIVE_USER_LOCAL = 'caderno_planner_active_user_v2';
+const STORAGE_ACTIVE_USER_SESSION = 'caderno_planner_active_user_session_v2';
 const STORAGE_ALL_USERS = 'caderno_planner_users_list_v1';
 const STORAGE_ZERO_RESET_KEY = 'caderno_planner_zero_reset_v5';
-const STORAGE_FIRST_SCREEN_RESET = 'caderno_force_access_screen_v1';
-
-// Ensure user starts at the Access/Login screen initially
-try {
-  if (typeof window !== 'undefined' && localStorage.getItem(STORAGE_FIRST_SCREEN_RESET) !== 'done') {
-    localStorage.removeItem(STORAGE_ACTIVE_USER_LOCAL);
-    sessionStorage.removeItem(STORAGE_ACTIVE_USER_SESSION);
-    localStorage.setItem(STORAGE_FIRST_SCREEN_RESET, 'done');
-  }
-} catch (e) {
-  console.error(e);
-}
 
 // Purge any old test/demo data in browser storage
 try {
@@ -101,17 +91,28 @@ export default function App() {
 
   const [activeUser, setActiveUser] = useState<UserAccount | null>(() => {
     try {
-      // 1. Check local storage (remembered / deixar logado)
-      const savedLocal = localStorage.getItem(STORAGE_ACTIVE_USER_LOCAL);
-      if (savedLocal) return JSON.parse(savedLocal);
+      // 1. Check local storage (permanent login - stays connected on refresh/reopen)
+      const savedLocal =
+        localStorage.getItem(STORAGE_ACTIVE_USER_LOCAL) ||
+        localStorage.getItem('caderno_current_user') ||
+        localStorage.getItem('caderno_planner_active_user_v1');
+      if (savedLocal) {
+        const user = JSON.parse(savedLocal);
+        if (user && user.id) return user;
+      }
 
-      // 2. Check session storage (single session)
-      const savedSession = sessionStorage.getItem(STORAGE_ACTIVE_USER_SESSION);
-      if (savedSession) return JSON.parse(savedSession);
+      // 2. Check session storage (fallback)
+      const savedSession =
+        sessionStorage.getItem(STORAGE_ACTIVE_USER_SESSION) ||
+        sessionStorage.getItem('caderno_planner_active_user_session_v1');
+      if (savedSession) {
+        const user = JSON.parse(savedSession);
+        if (user && user.id) return user;
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Erro recuperando login salvo:', e);
     }
-    // Always start as null if not previously logged in, displaying the Login / Access screen
+    // Returns null only if user has never logged in or explicitly logged out
     return null;
   });
 
@@ -126,6 +127,7 @@ export default function App() {
   const [highlightEntryId, setHighlightEntryId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showSwitchUserModal, setShowSwitchUserModal] = useState(false);
+  const [showSiteInfoModal, setShowSiteInfoModal] = useState(false);
 
   const initialUploadDoneRef = useRef<Record<string, boolean>>({});
 
@@ -229,12 +231,6 @@ export default function App() {
       }
     });
 
-    // One-time automatic cleanup of old cloud demo records
-    if (typeof window !== 'undefined' && sessionStorage.getItem('cloud_demo_purged_v5') !== 'done') {
-      sessionStorage.setItem('cloud_demo_purged_v5', 'done');
-      clearAllUserDataFromCloud('henrique');
-    }
-
     return () => unsubUsers();
   }, []);
 
@@ -247,6 +243,31 @@ export default function App() {
     const unsubscribeSync = subscribeToUserCloudData(activeUser.id, {
       onTasks: (cloudTasks) => {
         setIsCloudSyncing(false);
+
+        // On first sync on this device, check if there are local tasks created offline/earlier not yet in cloud
+        if (!initialUploadDoneRef.current[activeUser.id + '_tasks']) {
+          initialUploadDoneRef.current[activeUser.id + '_tasks'] = true;
+          try {
+            const localSaved = localStorage.getItem(getUserTasksKey(activeUser.id));
+            if (localSaved) {
+              const localTasks: Task[] = JSON.parse(localSaved);
+              const missingInCloud = localTasks.filter(
+                (lt) => !cloudTasks.some((ct) => ct.id === lt.id)
+              );
+              if (missingInCloud.length > 0) {
+                console.log(`[Cloud Sync] Sincronizando ${missingInCloud.length} tarefas locais para a nuvem...`);
+                missingInCloud.forEach((t) => saveTaskToCloud(t, activeUser.id));
+                const merged = [...cloudTasks, ...missingInCloud];
+                setTasks(merged);
+                localStorage.setItem(getUserTasksKey(activeUser.id), JSON.stringify(merged));
+                return;
+              }
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
         setTasks(cloudTasks);
         try {
           localStorage.setItem(getUserTasksKey(activeUser.id), JSON.stringify(cloudTasks));
@@ -255,6 +276,30 @@ export default function App() {
         }
       },
       onNotes: (cloudNotes) => {
+        // On first sync, upload any local notes missing from cloud
+        if (!initialUploadDoneRef.current[activeUser.id + '_notes']) {
+          initialUploadDoneRef.current[activeUser.id + '_notes'] = true;
+          try {
+            const localSaved = localStorage.getItem(getUserNotesKey(activeUser.id));
+            if (localSaved) {
+              const localNotes: NoteItem[] = JSON.parse(localSaved);
+              const missingInCloud = localNotes.filter(
+                (ln) => !cloudNotes.some((cn) => cn.id === ln.id)
+              );
+              if (missingInCloud.length > 0) {
+                console.log(`[Cloud Sync] Sincronizando ${missingInCloud.length} notas locais para a nuvem...`);
+                missingInCloud.forEach((n) => saveNoteToCloud(n, activeUser.id));
+                const merged = [...cloudNotes, ...missingInCloud];
+                setNotes(merged);
+                localStorage.setItem(getUserNotesKey(activeUser.id), JSON.stringify(merged));
+                return;
+              }
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
         setNotes(cloudNotes);
         try {
           localStorage.setItem(getUserNotesKey(activeUser.id), JSON.stringify(cloudNotes));
@@ -263,6 +308,30 @@ export default function App() {
         }
       },
       onEntries: (cloudEntries) => {
+        // On first sync, upload any local notebook entries missing from cloud
+        if (!initialUploadDoneRef.current[activeUser.id + '_entries']) {
+          initialUploadDoneRef.current[activeUser.id + '_entries'] = true;
+          try {
+            const localSaved = localStorage.getItem(getUserEntriesKey(activeUser.id));
+            if (localSaved) {
+              const localEntries: NotebookEntry[] = JSON.parse(localSaved);
+              const missingInCloud = localEntries.filter(
+                (le) => !cloudEntries.some((ce) => ce.id === le.id)
+              );
+              if (missingInCloud.length > 0) {
+                console.log(`[Cloud Sync] Sincronizando ${missingInCloud.length} entradas locais para a nuvem...`);
+                missingInCloud.forEach((e) => saveEntryToCloud(e, activeUser.id));
+                const merged = [...cloudEntries, ...missingInCloud];
+                setEntries(merged);
+                localStorage.setItem(getUserEntriesKey(activeUser.id), JSON.stringify(merged));
+                return;
+              }
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
         setEntries(cloudEntries);
         try {
           localStorage.setItem(getUserEntriesKey(activeUser.id), JSON.stringify(cloudEntries));
@@ -312,13 +381,26 @@ export default function App() {
     }
   }, [allUsers]);
 
+  // Persist activeUser to localStorage so page refresh never logs out
+  useEffect(() => {
+    if (activeUser) {
+      try {
+        localStorage.setItem(STORAGE_ACTIVE_USER_LOCAL, JSON.stringify(activeUser));
+        localStorage.setItem('caderno_current_user', JSON.stringify(activeUser));
+        sessionStorage.setItem(STORAGE_ACTIVE_USER_SESSION, JSON.stringify(activeUser));
+      } catch (e) {
+        console.error('Erro salvando sessão ativa:', e);
+      }
+    }
+  }, [activeUser]);
+
   // -------------------------------------------------------------
   // LOGIN / LOGOUT HANDLERS
   // -------------------------------------------------------------
   const handleLogin = (
     enteredUsername: string,
     enteredPass: string,
-    rememberMe: boolean
+    rememberMe: boolean = true
   ): { success: boolean; error?: string } => {
     const cleanUser = enteredUsername.trim().toLowerCase();
     const cleanPass = enteredPass.trim();
@@ -340,17 +422,16 @@ export default function App() {
       };
     }
 
-    // Set active user
+    // Set active user and immediately persist to local storage
     setActiveUser(matchedUser);
     setShowSwitchUserModal(false);
 
-    // "Deixar logado" handling
-    if (rememberMe) {
+    try {
       localStorage.setItem(STORAGE_ACTIVE_USER_LOCAL, JSON.stringify(matchedUser));
-      sessionStorage.removeItem(STORAGE_ACTIVE_USER_SESSION);
-    } else {
+      localStorage.setItem('caderno_current_user', JSON.stringify(matchedUser));
       sessionStorage.setItem(STORAGE_ACTIVE_USER_SESSION, JSON.stringify(matchedUser));
-      localStorage.removeItem(STORAGE_ACTIVE_USER_LOCAL);
+    } catch (e) {
+      console.error('Erro ao persistir sessão:', e);
     }
 
     showToast(`Conectado como ${matchedUser.name}! Seu planner individual foi carregado.`);
@@ -358,8 +439,15 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem(STORAGE_ACTIVE_USER_LOCAL);
-    sessionStorage.removeItem(STORAGE_ACTIVE_USER_SESSION);
+    try {
+      localStorage.removeItem(STORAGE_ACTIVE_USER_LOCAL);
+      localStorage.removeItem('caderno_current_user');
+      localStorage.removeItem('caderno_planner_active_user_v1');
+      sessionStorage.removeItem(STORAGE_ACTIVE_USER_SESSION);
+      sessionStorage.removeItem('caderno_planner_active_user_session_v1');
+    } catch (e) {
+      console.error('Erro ao limpar sessão:', e);
+    }
     setActiveUser(null);
     setCurrentTab('semana');
     showToast('Você saiu da sua conta.');
@@ -568,7 +656,7 @@ export default function App() {
     showToast(`Tarefa reprogramada para ${formatPtDate(newDate)}!`);
   };
 
-  const handleQuickAddTask = (title: string, targetDate: string) => {
+  const handleQuickAddTask = async (title: string, targetDate: string) => {
     if (!activeUser) return;
     const today = getTodayDateStr();
     const newTask: Task = {
@@ -587,7 +675,7 @@ export default function App() {
     };
 
     setTasks((prev) => [newTask, ...prev]);
-    saveTaskToCloud(newTask, activeUser.id);
+    await saveTaskToCloud(newTask, activeUser.id);
     showToast('Tarefa adicionada à sua semana!');
   };
 
@@ -648,9 +736,15 @@ export default function App() {
       setNotes((prev) => [...newNotes, ...prev]);
     }
 
-    saveEntryToCloud(newEntry, activeUser.id);
-    newTasks.forEach((t) => saveTaskToCloud(t, activeUser.id));
-    newNotes.forEach((n) => saveNoteToCloud(n, activeUser.id));
+    try {
+      await Promise.allSettled([
+        saveEntryToCloud(newEntry, activeUser.id),
+        ...newTasks.map((t) => saveTaskToCloud(t, activeUser.id)),
+        ...newNotes.map((n) => saveNoteToCloud(n, activeUser.id)),
+      ]);
+    } catch (err) {
+      console.error('Erro salvando no Firestore:', err);
+    }
 
     const toastMsg =
       newTasks.length > 0
@@ -785,6 +879,13 @@ export default function App() {
         <LoginView
           allUsers={allUsers}
           onLogin={handleLogin}
+          onOpenSiteInfo={() => setShowSiteInfoModal(true)}
+        />
+        <SiteInfoModal
+          isOpen={showSiteInfoModal}
+          onClose={() => setShowSiteInfoModal(false)}
+          currentUser={null}
+          cloudConnected={cloudConnected}
         />
       </div>
     );
@@ -820,16 +921,20 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Brand */}
           <div
-            onClick={() => setCurrentTab('semana')}
-            className="flex items-center gap-2.5 cursor-pointer select-none"
+            onClick={() => setShowSiteInfoModal(true)}
+            className="flex items-center gap-2.5 cursor-pointer select-none group"
+            title="Clique para ver Informações do Site e Detalhes do Caderno & Planner"
           >
-            <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center text-slate-900 shadow-xs">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white border border-slate-200 p-1 flex items-center justify-center text-slate-900 shadow-xs group-hover:border-indigo-400 group-hover:shadow-md transition-all">
               <AppLogo className="w-full h-full text-slate-900" />
             </div>
             <div>
-              <span className="text-base font-black tracking-tight text-slate-900 leading-tight block">
-                Caderno & Planner
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-base font-black tracking-tight text-slate-900 leading-tight block group-hover:text-indigo-600 transition-colors">
+                  Caderno & Planner
+                </span>
+                <Info className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+              </div>
               <span className="text-[10px] font-semibold text-indigo-600 tracking-wider uppercase block">
                 Inteligência Semanal
               </span>
@@ -945,11 +1050,21 @@ export default function App() {
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-0.5" title="Sincronizado" />
             </div>
 
+            {/* Site Info Button */}
+            <button
+              id="btn-header-site-info"
+              onClick={() => setShowSiteInfoModal(true)}
+              className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-colors cursor-pointer"
+              title="Informações Oficiais do Site"
+            >
+              <Info className="w-4 h-4" />
+            </button>
+
             {/* Logout / Switch User */}
             <button
               id="btn-header-logout"
               onClick={handleLogout}
-              className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors"
+              className="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer"
               title="Sair / Trocar de Usuário"
             >
               <LogOutIcon className="w-4 h-4" />
@@ -959,7 +1074,7 @@ export default function App() {
             <button
               id="header-escrever-btn"
               onClick={() => setCurrentTab('caderno')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors shadow-xs cursor-pointer"
             >
               <span>✍️</span>
               <span className="hidden sm:inline">Escrever</span>
@@ -1103,9 +1218,20 @@ export default function App() {
 
       {/* Minimal Footer */}
       <footer className="mt-auto border-t border-slate-200/80 bg-white py-4 px-6 text-center text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3 max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <span>Caderno & Planner Inteligente</span> •{' '}
-          <span className="text-slate-600 font-medium">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center text-slate-900 shadow-2xs shrink-0">
+            <AppLogo className="w-full h-full text-slate-900" />
+          </div>
+          <button
+            onClick={() => setShowSiteInfoModal(true)}
+            className="font-bold text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer flex items-center gap-1"
+            title="Ver Informações Oficiais do Site"
+          >
+            <span>Caderno & Planner Inteligente</span>
+            <Info className="w-3.5 h-3.5 text-indigo-500" />
+          </button>
+          <span className="hidden md:inline text-slate-300">•</span>
+          <span className="hidden md:inline text-slate-600 font-medium">
             Planner Individual de <strong>{activeUser.name}</strong> (@{activeUser.username})
           </span>
           <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold inline-flex items-center gap-1">
@@ -1115,21 +1241,35 @@ export default function App() {
 
         <div className="flex items-center gap-4">
           <button
+            onClick={() => setShowSiteInfoModal(true)}
+            className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            <Info className="w-3 h-3" /> Informações do Site
+          </button>
+          <button
             onClick={() => setShowSwitchUserModal(true)}
-            className="text-[11px] text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
+            className="text-[11px] text-slate-600 hover:text-indigo-600 font-medium transition-colors cursor-pointer"
           >
             Trocar Usuário
           </button>
           <button
             id="btn-zerar-dados"
             onClick={handleClearAllData}
-            className="text-[11px] text-rose-500 hover:text-rose-700 flex items-center gap-1 font-medium transition-colors"
+            className="text-[11px] text-rose-500 hover:text-rose-700 flex items-center gap-1 font-medium transition-colors cursor-pointer"
             title="Apagar todas as tarefas e anotações e começar o caderno do zero"
           >
-            <Trash2 className="w-3 h-3" /> Zerar tudo e começar do zero
+            <Trash2 className="w-3 h-3" /> Zerar tudo
           </button>
         </div>
       </footer>
+
+      {/* Site Info Modal */}
+      <SiteInfoModal
+        isOpen={showSiteInfoModal}
+        onClose={() => setShowSiteInfoModal(false)}
+        currentUser={activeUser}
+        cloudConnected={cloudConnected}
+      />
     </div>
   );
 }
