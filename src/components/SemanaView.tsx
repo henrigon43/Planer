@@ -26,6 +26,7 @@ import {
   Check,
   CalendarClock,
   History,
+  PenLine,
 } from 'lucide-react';
 
 interface SemanaViewProps {
@@ -39,6 +40,7 @@ interface SemanaViewProps {
   onOpenTaskDetail: (task: Task) => void;
   onGoToCaderno: () => void;
   onQuickAddTask: (title: string, targetDate: string) => void;
+  onUpdateTaskTitle?: (taskId: string, newTitle: string) => void;
 }
 
 export const SemanaView: React.FC<SemanaViewProps> = ({
@@ -52,11 +54,36 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
   onOpenTaskDetail,
   onGoToCaderno,
   onQuickAddTask,
+  onUpdateTaskTitle,
 }) => {
   const [quickAddDay, setQuickAddDay] = useState<string | null>(null);
   const [quickAddText, setQuickAddText] = useState('');
   const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
   const [overdueFilter, setOverdueFilter] = useState<'all' | 'previous_week' | 'this_week'>('all');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState<string>('');
+
+  const handleStartEditTask = (e: React.MouseEvent, t: Task) => {
+    e.stopPropagation();
+    setEditingTaskId(t.id);
+    setEditingTaskTitle(t.title);
+  };
+
+  const handleSaveEditTask = (e: React.FormEvent | React.MouseEvent, taskId: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (editingTaskTitle.trim() && onUpdateTaskTitle) {
+      onUpdateTaskTitle(taskId, editingTaskTitle.trim());
+    }
+    setEditingTaskId(null);
+    setEditingTaskTitle('');
+  };
+
+  const handleCancelEditTask = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTaskId(null);
+    setEditingTaskTitle('');
+  };
 
   const todayStr = getTodayDateStr();
   const weekDays = getWeekDays(currentWeekRefDate);
@@ -372,34 +399,90 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
                         </span>
                       </div>
 
-                      {/* Checkbox de Concluir + Título */}
-                      <div className="flex items-start gap-2.5">
-                        <button
-                          id={`pendencia-check-${t.id}`}
-                          type="button"
-                          onClick={() => onToggleTaskStatus(t.id)}
-                          className="mt-0.5 w-5 h-5 rounded-md border-2 border-rose-400 hover:bg-emerald-500 hover:border-emerald-500 flex items-center justify-center transition-colors group cursor-pointer shrink-0"
-                          title="Concluir tarefa atrasada"
+                      {/* Checkbox de Concluir + Título ou Edição com a Caneta */}
+                      {editingTaskId === t.id ? (
+                        <form
+                          onSubmit={(e) => handleSaveEditTask(e, t.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="space-y-2 p-1 bg-indigo-50/50 rounded-xl border border-indigo-200"
                         >
-                          <Check className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100" />
-                        </button>
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-700">
+                            <PenLine className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Editar o que está escrito:</span>
+                          </div>
+                          <textarea
+                            autoFocus
+                            rows={2}
+                            value={editingTaskTitle}
+                            onChange={(e) => setEditingTaskTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSaveEditTask(e, t.id);
+                              } else if (e.key === 'Escape') {
+                                handleCancelEditTask(e as any);
+                              }
+                            }}
+                            className="w-full text-xs font-semibold p-2 border-2 border-indigo-400 rounded-lg bg-white text-slate-900 focus:outline-hidden"
+                            placeholder="Editar o que está escrito..."
+                          />
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={handleCancelEditTask}
+                              className="px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-md transition-colors cursor-pointer"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-2.5 py-1 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-2xs transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Check className="w-3 h-3" />
+                              <span>Salvar</span>
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div className="flex items-start gap-2.5">
+                          <button
+                            id={`pendencia-check-${t.id}`}
+                            type="button"
+                            onClick={() => onToggleTaskStatus(t.id)}
+                            className="mt-0.5 w-5 h-5 rounded-md border-2 border-rose-400 hover:bg-emerald-500 hover:border-emerald-500 flex items-center justify-center transition-colors group cursor-pointer shrink-0"
+                            title="Concluir tarefa atrasada"
+                          >
+                            <Check className="w-3.5 h-3.5 text-white opacity-0 group-hover:opacity-100" />
+                          </button>
 
-                        <div
-                          className="flex-1 cursor-pointer"
-                          onClick={() => onOpenTaskDetail(t)}
-                        >
-                          <p className="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 leading-snug">
-                            {t.title}
-                          </p>
-
-                          {t.person && (
-                            <div className="flex items-center gap-1 mt-1 text-[11px] text-slate-600 font-medium">
-                              <User className="w-3 h-3 text-slate-400" />
-                              <span>{t.person}</span>
+                          <div
+                            className="flex-1 cursor-pointer min-w-0"
+                            onClick={() => onOpenTaskDetail(t)}
+                          >
+                            <div className="flex items-start justify-between gap-1.5">
+                              <p className="text-xs font-bold text-slate-900 hover:text-indigo-600 line-clamp-2 leading-snug">
+                                {t.title}
+                              </p>
+                              <button
+                                id={`btn-edit-overdue-${t.id}`}
+                                type="button"
+                                onClick={(e) => handleStartEditTask(e, t)}
+                                className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 transition-colors cursor-pointer shrink-0"
+                                title="Logo da caneta: Editar o que está escrito"
+                              >
+                                <PenLine className="w-3.5 h-3.5 text-indigo-600" />
+                              </button>
                             </div>
-                          )}
+
+                            {t.person && (
+                              <div className="flex items-center gap-1 mt-1 text-[11px] text-slate-600 font-medium">
+                                <User className="w-3 h-3 text-slate-400" />
+                                <span>{t.person}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* Barra de ações para puxar ou reprogramar a tarefa */}
@@ -550,57 +633,115 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
                       }`}
                       onClick={() => onOpenTaskDetail(t)}
                     >
-                      <div className="flex items-start gap-2">
-                        {/* Checkbox */}
-                        <button
-                          id={`task-check-${t.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleTaskStatus(t.id);
-                          }}
-                          className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
-                            isDone
-                              ? 'bg-emerald-600 border-emerald-600 text-white'
-                              : isOver
-                              ? 'border-rose-400 hover:bg-emerald-500 hover:border-emerald-500'
-                              : 'border-slate-300 hover:border-indigo-500'
-                          }`}
-                          title={isDone ? 'Reabrir tarefa' : 'Marcar concluída'}
+                      {editingTaskId === t.id ? (
+                        <form
+                          onSubmit={(e) => handleSaveEditTask(e, t.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="space-y-1.5 p-0.5"
                         >
-                          {isDone && <Check className="w-3 h-3 text-white" />}
-                        </button>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1 mb-0.5">
-                            <span className="text-xs">{statusBadge}</span>
-                            <span
-                              className={`text-xs font-semibold line-clamp-2 leading-tight ${
-                                isDone ? 'line-through text-slate-400' : 'text-slate-800'
-                              }`}
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-700">
+                            <PenLine className="w-3 h-3 text-indigo-600" />
+                            <span>Editar o que está escrito:</span>
+                          </div>
+                          <textarea
+                            autoFocus
+                            rows={2}
+                            value={editingTaskTitle}
+                            onChange={(e) => setEditingTaskTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSaveEditTask(e, t.id);
+                              } else if (e.key === 'Escape') {
+                                handleCancelEditTask(e as any);
+                              }
+                            }}
+                            className="w-full text-xs font-semibold p-1.5 border-2 border-indigo-400 rounded-lg bg-white text-slate-900 focus:outline-hidden"
+                            placeholder="Editar o que está escrito..."
+                          />
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={handleCancelEditTask}
+                              className="px-2 py-0.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-slate-100 rounded-md transition-colors cursor-pointer"
                             >
-                              {t.title}
-                            </span>
+                              Cancelar
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-2 py-0.5 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-2xs transition-colors flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <Check className="w-3 h-3" />
+                              <span>Salvar</span>
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <>
+                          <div className="flex items-start gap-2">
+                            {/* Checkbox */}
+                            <button
+                              id={`task-check-${t.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleTaskStatus(t.id);
+                              }}
+                              className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                                isDone
+                                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                                  : isOver
+                                  ? 'border-rose-400 hover:bg-emerald-500 hover:border-emerald-500'
+                                  : 'border-slate-300 hover:border-indigo-500'
+                              }`}
+                              title={isDone ? 'Reabrir tarefa' : 'Marcar concluída'}
+                            >
+                              {isDone && <Check className="w-3 h-3 text-white" />}
+                            </button>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-1 mb-0.5">
+                                <div className="flex items-center gap-1 min-w-0">
+                                  <span className="text-xs shrink-0">{statusBadge}</span>
+                                  <span
+                                    className={`text-xs font-semibold line-clamp-2 leading-tight ${
+                                      isDone ? 'line-through text-slate-400' : 'text-slate-800'
+                                    }`}
+                                  >
+                                    {t.title}
+                                  </span>
+                                </div>
+                                <button
+                                  id={`btn-edit-col-task-${t.id}`}
+                                  type="button"
+                                  onClick={(e) => handleStartEditTask(e, t)}
+                                  className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+                                  title="Logo da caneta: Editar o que está escrito"
+                                >
+                                  <PenLine className="w-3.5 h-3.5 text-indigo-600" />
+                                </button>
+                              </div>
+
+                              {t.person && (
+                                <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                                  <User className="w-2.5 h-2.5 text-slate-400" />
+                                  <span className="truncate">{t.person}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
 
-                          {t.person && (
-                            <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-                              <User className="w-2.5 h-2.5 text-slate-400" />
-                              <span className="truncate">{t.person}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Origin indicator tag */}
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[10px] text-slate-400">
-                        <span className="text-[10px] font-medium text-slate-500">
-                          {t.category}
-                        </span>
-                        <span className="flex items-center gap-0.5 text-amber-700/80 hover:text-amber-900">
-                          <BookOpen className="w-2.5 h-2.5" />
-                          <span>origem</span>
-                        </span>
-                      </div>
+                          {/* Origin indicator tag */}
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[10px] text-slate-400">
+                            <span className="text-[10px] font-medium text-slate-500">
+                              {t.category}
+                            </span>
+                            <span className="flex items-center gap-0.5 text-amber-700/80 hover:text-amber-900">
+                              <BookOpen className="w-2.5 h-2.5" />
+                              <span>origem</span>
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}

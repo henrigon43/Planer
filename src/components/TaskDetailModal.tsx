@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task } from '../types';
 import { formatPtDate, getWeekdayName, getRelativeDayOffset } from '../utils/dateUtils';
 import {
@@ -13,6 +13,8 @@ import {
   AlertCircle,
   RotateCcw,
   Trash2,
+  PenLine,
+  Check,
 } from 'lucide-react';
 
 interface TaskDetailModalProps {
@@ -23,6 +25,7 @@ interface TaskDetailModalProps {
   onReschedule: (taskId: string, newDate: string) => void;
   onDeleteTask: (taskId: string) => void;
   onOpenNotebookEntry?: (entryId: string) => void;
+  onUpdateTitle?: (taskId: string, newTitle: string) => void;
 }
 
 export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
@@ -33,11 +36,30 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onReschedule,
   onDeleteTask,
   onOpenNotebookEntry,
+  onUpdateTitle,
 }) => {
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitleText, setEditTitleText] = useState('');
+
+  useEffect(() => {
+    if (task) {
+      setEditTitleText(task.title);
+      setIsEditingTitle(false);
+    }
+  }, [task]);
+
   if (!task) return null;
 
   const isDone = task.status === 'concluido';
   const isOverdue = task.status === 'atrasado';
+
+  const handleSaveTitle = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editTitleText.trim() && onUpdateTitle) {
+      onUpdateTitle(task.id, editTitleText.trim());
+    }
+    setIsEditingTitle(false);
+  };
 
   return (
     <div
@@ -93,17 +115,68 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
             >
               {isDone && <CheckCircle2 className="w-4 h-4 text-white" />}
             </button>
-            <div>
-              <h2
-                className={`text-lg font-bold text-slate-900 leading-snug ${
-                  isDone ? 'line-through text-slate-400' : ''
-                }`}
-              >
-                {task.title}
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Criada em {formatPtDate(task.createdDate)}
-              </p>
+            <div className="flex-1 min-w-0">
+              {isEditingTitle ? (
+                <form onSubmit={handleSaveTitle} className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700">
+                    <PenLine className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Editar o que está escrito:</span>
+                  </div>
+                  <input
+                    type="text"
+                    autoFocus
+                    value={editTitleText}
+                    onChange={(e) => setEditTitleText(e.target.value)}
+                    className="w-full text-base font-bold p-2 border-2 border-indigo-400 rounded-xl bg-white text-slate-900 focus:outline-hidden"
+                    placeholder="Título da tarefa..."
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="submit"
+                      className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Salvar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditTitleText(task.title);
+                        setIsEditingTitle(false);
+                      }}
+                      className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2
+                      className={`text-lg font-bold text-slate-900 leading-snug ${
+                        isDone ? 'line-through text-slate-400' : ''
+                      }`}
+                    >
+                      {task.title}
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Criada em {formatPtDate(task.createdDate)}
+                    </p>
+                  </div>
+                  {onUpdateTitle && (
+                    <button
+                      type="button"
+                      id="modal-edit-task-pen"
+                      onClick={() => setIsEditingTitle(true)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-colors cursor-pointer shrink-0"
+                      title="Logo da caneta: Editar o que está escrito"
+                    >
+                      <PenLine className="w-4 h-4 text-indigo-600" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

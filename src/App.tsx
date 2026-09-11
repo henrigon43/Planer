@@ -656,6 +656,89 @@ export default function App() {
     showToast(`Tarefa reprogramada para ${formatPtDate(newDate)}!`);
   };
 
+  const handleUpdateTaskTitle = async (taskId: string, newTitle: string) => {
+    if (!activeUser || !newTitle.trim()) return;
+    const cleanTitle = newTitle.trim();
+    let updatedTask: Task | null = null;
+
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskId) {
+          updatedTask = {
+            ...t,
+            title: cleanTitle,
+          };
+          return updatedTask;
+        }
+        return t;
+      })
+    );
+
+    if (updatedTask && activeUser) {
+      await saveTaskToCloud(updatedTask, activeUser.id);
+    }
+    if (selectedTask && selectedTask.id === taskId && updatedTask) {
+      setSelectedTask(updatedTask);
+    }
+    showToast('✏️ Texto atualizado com sucesso!');
+  };
+
+  const handleUpdateNotebookEntry = async (
+    entryId: string,
+    newRawText: string,
+    reprocessWithAI: boolean = false
+  ) => {
+    if (!activeUser || !newRawText.trim()) return;
+    const cleanText = newRawText.trim();
+    let updatedEntry: NotebookEntry | null = null;
+
+    setEntries((prev) =>
+      prev.map((e) => {
+        if (e.id === entryId) {
+          updatedEntry = {
+            ...e,
+            rawText: cleanText,
+          };
+          return updatedEntry;
+        }
+        return e;
+      })
+    );
+
+    if (updatedEntry && activeUser) {
+      await saveEntryToCloud(updatedEntry, activeUser.id);
+    }
+
+    if (reprocessWithAI && activeUser) {
+      const today = getTodayDateStr();
+      const result = await analyzeNoteWithAI(cleanText, today);
+
+      const newTasks: Task[] = result.tasks.map((t, idx) => ({
+        id: `task-${Date.now()}-${idx}`,
+        title: t.title,
+        person: t.person,
+        deadlineText: t.deadlineText,
+        targetDate: t.suggestedDate,
+        category: t.category,
+        priority: t.priority,
+        status: t.suggestedDate < today ? 'atrasado' : 'pendente',
+        originalNoteId: entryId,
+        originalNoteText: cleanText,
+        createdDate: today,
+        userId: activeUser.id,
+      }));
+
+      if (newTasks.length > 0) {
+        setTasks((prev) => [...newTasks, ...prev]);
+        await Promise.allSettled(newTasks.map((t) => saveTaskToCloud(t, activeUser.id)));
+        showToast(`✨ Anotação atualizada e ${newTasks.length} nova(s) tarefa(s) gerada(s)!`);
+        return;
+      }
+    }
+
+    showToast('✏️ Anotação do caderno atualizada com sucesso!');
+  };
+
   const handleQuickAddTask = async (title: string, targetDate: string) => {
     if (!activeUser) return;
     const today = getTodayDateStr();
@@ -1146,6 +1229,7 @@ export default function App() {
             onOpenTaskDetail={setSelectedTask}
             onGoToCaderno={() => setCurrentTab('caderno')}
             onQuickAddTask={handleQuickAddTask}
+            onUpdateTaskTitle={handleUpdateTaskTitle}
           />
         )}
 
@@ -1160,6 +1244,8 @@ export default function App() {
             onGoToSemana={() => setCurrentTab('semana')}
             onDeleteEntry={handleDeleteEntry}
             highlightEntryId={highlightEntryId}
+            onUpdateEntryText={handleUpdateNotebookEntry}
+            onUpdateTaskTitle={handleUpdateTaskTitle}
           />
         )}
 
@@ -1214,6 +1300,7 @@ export default function App() {
         onReschedule={handleRescheduleTask}
         onDeleteTask={handleDeleteTask}
         onOpenNotebookEntry={handleOpenNotebookEntry}
+        onUpdateTitle={handleUpdateTaskTitle}
       />
 
       {/* Minimal Footer */}
