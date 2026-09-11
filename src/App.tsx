@@ -16,6 +16,7 @@ import {
   subscribeToUsersCloud,
   saveUserToCloud,
   deleteUserFromCloud,
+  clearAllUserDataFromCloud,
 } from './firebase';
 import { SemanaView } from './components/SemanaView';
 import { CadernoView } from './components/CadernoView';
@@ -40,11 +41,31 @@ import {
   Users,
   ShieldCheck,
   User as UserIcon,
+  Trash2,
 } from 'lucide-react';
 
 const STORAGE_ACTIVE_USER_LOCAL = 'caderno_planner_active_user_v1';
 const STORAGE_ACTIVE_USER_SESSION = 'caderno_planner_active_user_session_v1';
 const STORAGE_ALL_USERS = 'caderno_planner_users_list_v1';
+const STORAGE_ZERO_RESET_KEY = 'caderno_planner_zero_reset_v5';
+
+// Purge any old test/demo data in browser storage
+try {
+  if (typeof window !== 'undefined' && localStorage.getItem(STORAGE_ZERO_RESET_KEY) !== 'done') {
+    Object.keys(localStorage).forEach((key) => {
+      if (
+        key.startsWith('caderno_planner_tasks') ||
+        key.startsWith('caderno_planner_notes') ||
+        key.startsWith('caderno_planner_entries')
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
+    localStorage.setItem(STORAGE_ZERO_RESET_KEY, 'done');
+  }
+} catch (e) {
+  console.error(e);
+}
 
 export default function App() {
   // 1. Users List & Active User State
@@ -108,7 +129,7 @@ export default function App() {
   const getUserNotesKey = (uid: string) => `caderno_planner_notes_user_${uid}`;
   const getUserEntriesKey = (uid: string) => `caderno_planner_entries_user_${uid}`;
 
-  // Local state for active user's planner
+  // Local state for active user's planner (all initialized clean from scratch)
   const [tasks, setTasks] = useState<Task[]>(() => {
     if (!activeUser) return [];
     try {
@@ -117,25 +138,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    // If Henrique, provide sample data; otherwise start with clean planner
-    if (activeUser.username === 'henrique') {
-      return INITIAL_TASKS.map((t) => ({ ...t, userId: activeUser.id }));
-    }
-    return [
-      {
-        id: `task-welcome-${activeUser.id}`,
-        title: `Bem-vindo ao seu planner individual, ${activeUser.name}!`,
-        deadlineText: 'Hoje',
-        targetDate: getTodayDateStr(),
-        category: 'Trabalho',
-        priority: 'alta',
-        status: 'pendente',
-        originalNoteId: '',
-        originalNoteText: 'Sua conta foi criada pelo administrador Henrique.',
-        createdDate: getTodayDateStr(),
-        userId: activeUser.id,
-      },
-    ];
+    return [];
   });
 
   const [notes, setNotes] = useState<NoteItem[]>(() => {
@@ -146,19 +149,7 @@ export default function App() {
     } catch (e) {
       console.error(e);
     }
-    if (activeUser.username === 'henrique') {
-      return INITIAL_NOTES.map((n) => ({ ...n, userId: activeUser.id }));
-    }
-    return [
-      {
-        id: `note-welcome-${activeUser.id}`,
-        type: 'importante',
-        title: 'Espaço 100% Individual',
-        content: `Olá ${activeUser.name}, tudo o que você anotar aqui ou na semana é privativo e visto apenas por você.`,
-        createdDate: getTodayDateStr(),
-        userId: activeUser.id,
-      },
-    ];
+    return [];
   });
 
   const [entries, setEntries] = useState<NotebookEntry[]>(() => {
@@ -168,9 +159,6 @@ export default function App() {
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error(e);
-    }
-    if (activeUser.username === 'henrique') {
-      return INITIAL_ENTRIES.map((e) => ({ ...e, userId: activeUser.id }));
     }
     return [];
   });
@@ -186,64 +174,13 @@ export default function App() {
 
     try {
       const savedTasks = localStorage.getItem(getUserTasksKey(activeUser.id));
-      if (savedTasks) {
-        setTasks(JSON.parse(savedTasks));
-      } else if (activeUser.username === 'henrique') {
-        const seeded = INITIAL_TASKS.map((t) => ({ ...t, userId: activeUser.id }));
-        setTasks(seeded);
-        localStorage.setItem(getUserTasksKey(activeUser.id), JSON.stringify(seeded));
-      } else {
-        const welcomeTasks: Task[] = [
-          {
-            id: `task-welcome-${activeUser.id}`,
-            title: `Bem-vindo ao seu planner individual, ${activeUser.name}!`,
-            deadlineText: 'Hoje',
-            targetDate: getTodayDateStr(),
-            category: 'Trabalho',
-            priority: 'alta',
-            status: 'pendente',
-            originalNoteId: '',
-            originalNoteText: 'Sua conta foi criada pelo administrador Henrique.',
-            createdDate: getTodayDateStr(),
-            userId: activeUser.id,
-          },
-        ];
-        setTasks(welcomeTasks);
-        localStorage.setItem(getUserTasksKey(activeUser.id), JSON.stringify(welcomeTasks));
-      }
+      setTasks(savedTasks ? JSON.parse(savedTasks) : []);
 
       const savedNotes = localStorage.getItem(getUserNotesKey(activeUser.id));
-      if (savedNotes) {
-        setNotes(JSON.parse(savedNotes));
-      } else if (activeUser.username === 'henrique') {
-        const seeded = INITIAL_NOTES.map((n) => ({ ...n, userId: activeUser.id }));
-        setNotes(seeded);
-        localStorage.setItem(getUserNotesKey(activeUser.id), JSON.stringify(seeded));
-      } else {
-        const welcomeNotes: NoteItem[] = [
-          {
-            id: `note-welcome-${activeUser.id}`,
-            type: 'importante',
-            title: 'Espaço 100% Individual',
-            content: `Olá ${activeUser.name}, tudo o que você anotar aqui ou na semana é privativo e visto apenas por você.`,
-            createdDate: getTodayDateStr(),
-            userId: activeUser.id,
-          },
-        ];
-        setNotes(welcomeNotes);
-        localStorage.setItem(getUserNotesKey(activeUser.id), JSON.stringify(welcomeNotes));
-      }
+      setNotes(savedNotes ? JSON.parse(savedNotes) : []);
 
       const savedEntries = localStorage.getItem(getUserEntriesKey(activeUser.id));
-      if (savedEntries) {
-        setEntries(JSON.parse(savedEntries));
-      } else if (activeUser.username === 'henrique') {
-        const seeded = INITIAL_ENTRIES.map((e) => ({ ...e, userId: activeUser.id }));
-        setEntries(seeded);
-        localStorage.setItem(getUserEntriesKey(activeUser.id), JSON.stringify(seeded));
-      } else {
-        setEntries([]);
-      }
+      setEntries(savedEntries ? JSON.parse(savedEntries) : []);
     } catch (err) {
       console.error('Erro ao carregar dados locais do usuário:', err);
     }
@@ -280,6 +217,12 @@ export default function App() {
       }
     });
 
+    // One-time automatic cleanup of old cloud demo records
+    if (typeof window !== 'undefined' && sessionStorage.getItem('cloud_demo_purged_v5') !== 'done') {
+      sessionStorage.setItem('cloud_demo_purged_v5', 'done');
+      clearAllUserDataFromCloud('henrique');
+    }
+
     return () => unsubUsers();
   }, []);
 
@@ -292,40 +235,27 @@ export default function App() {
     const unsubscribeSync = subscribeToUserCloudData(activeUser.id, {
       onTasks: (cloudTasks) => {
         setIsCloudSyncing(false);
-        if (cloudTasks.length > 0) {
-          setTasks(cloudTasks);
-          try {
-            localStorage.setItem(getUserTasksKey(activeUser.id), JSON.stringify(cloudTasks));
-          } catch (e) {
-            console.error(e);
-          }
-        } else if (!initialUploadDoneRef.current[activeUser.id] && tasks.length > 0) {
-          initialUploadDoneRef.current[activeUser.id] = true;
-          tasks.forEach((t) => saveTaskToCloud(t, activeUser.id));
+        setTasks(cloudTasks);
+        try {
+          localStorage.setItem(getUserTasksKey(activeUser.id), JSON.stringify(cloudTasks));
+        } catch (e) {
+          console.error(e);
         }
       },
       onNotes: (cloudNotes) => {
-        if (cloudNotes.length > 0) {
-          setNotes(cloudNotes);
-          try {
-            localStorage.setItem(getUserNotesKey(activeUser.id), JSON.stringify(cloudNotes));
-          } catch (e) {
-            console.error(e);
-          }
-        } else if (!initialUploadDoneRef.current[activeUser.id] && notes.length > 0) {
-          notes.forEach((n) => saveNoteToCloud(n, activeUser.id));
+        setNotes(cloudNotes);
+        try {
+          localStorage.setItem(getUserNotesKey(activeUser.id), JSON.stringify(cloudNotes));
+        } catch (e) {
+          console.error(e);
         }
       },
       onEntries: (cloudEntries) => {
-        if (cloudEntries.length > 0) {
-          setEntries(cloudEntries);
-          try {
-            localStorage.setItem(getUserEntriesKey(activeUser.id), JSON.stringify(cloudEntries));
-          } catch (e) {
-            console.error(e);
-          }
-        } else if (!initialUploadDoneRef.current[activeUser.id] && entries.length > 0) {
-          entries.forEach((e) => saveEntryToCloud(e, activeUser.id));
+        setEntries(cloudEntries);
+        try {
+          localStorage.setItem(getUserEntriesKey(activeUser.id), JSON.stringify(cloudEntries));
+        } catch (e) {
+          console.error(e);
         }
       },
     });
@@ -733,23 +663,27 @@ export default function App() {
     showToast('Registro do caderno removido.');
   };
 
-  const handleResetData = () => {
+  const handleClearAllData = async () => {
     if (!activeUser) return;
-    if (window.confirm('Deseja recarregar os exemplos iniciais do caderno e planner?')) {
-      const seededTasks = INITIAL_TASKS.map((t) => ({ ...t, userId: activeUser.id }));
-      const seededNotes = INITIAL_NOTES.map((n) => ({ ...n, userId: activeUser.id }));
-      const seededEntries = INITIAL_ENTRIES.map((e) => ({ ...e, userId: activeUser.id }));
+    const confirmed = window.confirm(
+      'Tem certeza que deseja ZERAR todas as tarefas, anotações e registros do caderno para começar 100% do zero?'
+    );
+    if (!confirmed) return;
 
-      setTasks(seededTasks);
-      setNotes(seededNotes);
-      setEntries(seededEntries);
+    setTasks([]);
+    setNotes([]);
+    setEntries([]);
 
-      localStorage.setItem(getUserTasksKey(activeUser.id), JSON.stringify(seededTasks));
-      localStorage.setItem(getUserNotesKey(activeUser.id), JSON.stringify(seededNotes));
-      localStorage.setItem(getUserEntriesKey(activeUser.id), JSON.stringify(seededEntries));
-
-      showToast('Dados de exemplo restaurados!');
+    try {
+      localStorage.removeItem(getUserTasksKey(activeUser.id));
+      localStorage.removeItem(getUserNotesKey(activeUser.id));
+      localStorage.removeItem(getUserEntriesKey(activeUser.id));
+    } catch (e) {
+      console.error(e);
     }
+
+    await clearAllUserDataFromCloud(activeUser.id);
+    showToast('✨ Todas as informações foram zeradas! Seu caderno está 100% limpo para começar.');
   };
 
   const handleOpenNotebookEntry = (entryId: string) => {
@@ -1109,11 +1043,12 @@ export default function App() {
             Trocar Usuário
           </button>
           <button
-            onClick={handleResetData}
-            className="text-[11px] text-slate-400 hover:text-indigo-600 flex items-center gap-1 transition-colors"
-            title="Recarregar exemplos padrão deste usuário"
+            id="btn-zerar-dados"
+            onClick={handleClearAllData}
+            className="text-[11px] text-rose-500 hover:text-rose-700 flex items-center gap-1 font-medium transition-colors"
+            title="Apagar todas as tarefas e anotações e começar o caderno do zero"
           >
-            <RotateCcw className="w-3 h-3" /> Restaurar exemplos
+            <Trash2 className="w-3 h-3" /> Zerar tudo e começar do zero
           </button>
         </div>
       </footer>

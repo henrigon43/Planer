@@ -207,8 +207,12 @@ export const CadernoView: React.FC<CadernoViewProps> = ({
         </div>
 
         {filteredEntries.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center border border-slate-200 text-slate-400 text-sm">
-            Nenhum registro encontrado no histórico.
+          <div className="bg-white rounded-2xl p-10 text-center border border-dashed border-slate-200 text-slate-400 text-sm flex flex-col items-center justify-center gap-2">
+            <span className="text-3xl mb-1">📓</span>
+            <p className="font-semibold text-slate-700">Seu caderno está pronto e em branco!</p>
+            <p className="text-xs text-slate-400 max-w-md">
+              Escreva qualquer anotação, compromisso ou pedido no campo acima. O sistema vai extrair automaticamente tarefas, prazos, pessoas e organizar na sua semana.
+            </p>
           </div>
         ) : (
           <div className="space-y-5">

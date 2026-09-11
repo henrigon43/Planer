@@ -18,6 +18,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  getDocs,
   Unsubscribe,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
@@ -252,6 +253,26 @@ export async function deleteEntryFromCloud(entryId: string): Promise<void> {
     await deleteDoc(docRef);
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// Clear all tasks, notes and notebook entries for a specific user from cloud
+export async function clearAllUserDataFromCloud(userId: string): Promise<void> {
+  try {
+    const tasksSnap = await getDocs(query(collection(db, 'tasks'), where('userId', '==', userId)));
+    for (const d of tasksSnap.docs) {
+      await deleteDoc(d.ref);
+    }
+    const notesSnap = await getDocs(query(collection(db, 'notes'), where('userId', '==', userId)));
+    for (const d of notesSnap.docs) {
+      await deleteDoc(d.ref);
+    }
+    const entriesSnap = await getDocs(query(collection(db, 'entries'), where('userId', '==', userId)));
+    for (const d of entriesSnap.docs) {
+      await deleteDoc(d.ref);
+    }
+  } catch (err) {
+    console.error('Erro ao limpar dados na nuvem:', err);
   }
 }
 

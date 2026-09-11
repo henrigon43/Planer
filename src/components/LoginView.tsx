@@ -44,15 +44,6 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
     }
   };
 
-  const handleQuickAdminLogin = () => {
-    setUsername('henrique');
-    setPassword('1234');
-    const res = onLogin('henrique', '1234', rememberMe);
-    if (!res.success) {
-      setErrorMessage(res.error || 'Erro ao entrar como admin.');
-    }
-  };
-
   const cardContent = (
     <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200/80 shadow-xl overflow-hidden p-7 sm:p-9 animate-fadeIn">
       {/* Brand Header */}
@@ -72,7 +63,7 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
       <div className="mb-6 p-3 bg-indigo-50/80 border border-indigo-100 rounded-2xl text-xs text-indigo-900 flex items-start gap-2.5">
         <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
         <div className="text-[11px] leading-relaxed">
-          <strong>Acesso Individual:</strong> Cada usuário visualiza exclusivamente suas próprias tarefas e anotações. Apenas o administrador <strong>Henrique</strong> pode cadastrar novos logins.
+          <strong>Acesso Individual:</strong> Cada usuário visualiza exclusivamente suas próprias tarefas e anotações no planner privativo.
         </div>
       </div>
 
@@ -95,7 +86,7 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-              placeholder="Ex: henrique"
+              placeholder="Digite seu usuário"
               className="w-full text-sm pl-9 pr-3.5 py-3 rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50/60 font-medium transition-all"
               autoFocus
               required
@@ -155,18 +146,6 @@ export function LoginView({ allUsers, onLogin, onCancel, isModal = false }: Logi
           <span>Entrar no Meu Planner</span>
         </button>
       </form>
-
-      {/* Quick Admin Access Button */}
-      <div className="mt-5 pt-5 border-t border-slate-100">
-        <button
-          type="button"
-          onClick={handleQuickAdminLogin}
-          className="w-full py-2.5 px-3 rounded-xl border border-slate-200 hover:border-indigo-200 bg-white hover:bg-indigo-50/50 text-xs font-semibold text-slate-700 hover:text-indigo-700 flex items-center justify-center gap-2 transition-colors cursor-pointer"
-        >
-          <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Acesso Rápido Admin: Henrique (1234)</span>
-        </button>
-      </div>
 
       {isModal && onCancel && (
         <button
