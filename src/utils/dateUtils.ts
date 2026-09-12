@@ -1,19 +1,20 @@
 /**
  * Date utilities for Caderno & Planner Inteligente
- * Default reference date is 2026-09-11 (Friday) to align with sample timeline,
- * but dynamically adapts to navigation.
+ * Dynamically synchronizes with the real current local date and week.
  */
 
-export const REFERENCE_TODAY = '2026-09-11';
-
 export function getTodayDateStr(): string {
-  // Use reference date if current year matches, or default
-  return REFERENCE_TODAY;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function parseDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d);
+  // Set to noon (12:00:00) to prevent daylight savings / timezone transitions from shifting day
+  return new Date(y, m - 1, d, 12, 0, 0);
 }
 
 export function formatDateStr(d: Date): string {
@@ -26,7 +27,7 @@ export function formatDateStr(d: Date): string {
 export function formatPtDate(dateStr: string): string {
   try {
     const [y, m, d] = dateStr.split('-').map(Number);
-    const date = new Date(y, m - 1, d);
+    const date = new Date(y, m - 1, d, 12, 0, 0);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -39,7 +40,7 @@ export function formatPtDate(dateStr: string): string {
 
 export function getWeekdayName(dateStr: string, short = false): string {
   const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(y, m - 1, d);
+  const date = new Date(y, m - 1, d, 12, 0, 0);
   const weekdays = short
     ? ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB']
     : ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
@@ -48,11 +49,10 @@ export function getWeekdayName(dateStr: string, short = false): string {
 
 export function getWeekDays(referenceDateStr: string): Array<{ dateStr: string; dayName: string; shortDay: string; dayNum: number; isToday: boolean }> {
   const [y, m, d] = referenceDateStr.split('-').map(Number);
-  const ref = new Date(y, m - 1, d);
+  const ref = new Date(y, m - 1, d, 12, 0, 0);
   const dayOfWeek = ref.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
   
-  // Calculate Monday of the week (assuming week starts on Monday, or Sunday)
-  // Brazilian work planner standard: starts on Monday
+  // Calculate Monday of the week (assuming week starts on Monday, standard Brazilian planner)
   const distanceToMonday = (dayOfWeek + 6) % 7;
   const monday = new Date(ref);
   monday.setDate(ref.getDate() - distanceToMonday);
@@ -60,6 +60,7 @@ export function getWeekDays(referenceDateStr: string): Array<{ dateStr: string; 
   const days = [];
   const weekdaysShort = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
   const weekdaysFull = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+  const todayStr = getTodayDateStr();
 
   for (let i = 0; i < 7; i++) {
     const current = new Date(monday);
@@ -70,7 +71,7 @@ export function getWeekDays(referenceDateStr: string): Array<{ dateStr: string; 
       dayName: weekdaysFull[i],
       shortDay: weekdaysShort[i],
       dayNum: current.getDate(),
-      isToday: dateStr === getTodayDateStr(),
+      isToday: dateStr === todayStr,
     });
   }
 
@@ -85,9 +86,19 @@ export function getWeekLabel(referenceDateStr: string): string {
   const lastDate = parseDate(last.dateStr);
   
   const monthNames = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-  const monthStr = monthNames[lastDate.getMonth()];
+  const firstMonthStr = monthNames[firstDate.getMonth()];
+  const lastMonthStr = monthNames[lastDate.getMonth()];
   
-  return `SEMANA ${String(firstDate.getDate()).padStart(2, '0')} — ${String(lastDate.getDate()).padStart(2, '0')} ${monthStr}`;
+  if (firstDate.getMonth() === lastDate.getMonth()) {
+    return `SEMANA ${String(firstDate.getDate()).padStart(2, '0')} — ${String(lastDate.getDate()).padStart(2, '0')} ${lastMonthStr}`;
+  }
+  return `SEMANA ${String(firstDate.getDate()).padStart(2, '0')} ${firstMonthStr} — ${String(lastDate.getDate()).padStart(2, '0')} ${lastMonthStr}`;
+}
+
+export function isCurrentWeek(referenceDateStr: string): boolean {
+  const todayStr = getTodayDateStr();
+  const week = getWeekDays(referenceDateStr);
+  return week.some((d) => d.dateStr === todayStr);
 }
 
 export function shiftWeek(currentDateStr: string, weeks: number): string {

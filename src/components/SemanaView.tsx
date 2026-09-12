@@ -7,6 +7,7 @@ import {
   getTodayDateStr,
   formatPtDate,
   isDateOverdue,
+  isCurrentWeek,
 } from '../utils/dateUtils';
 import {
   ChevronLeft,
@@ -177,22 +178,28 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
             <button
               id="prev-week-btn"
               onClick={() => onSetWeekRefDate(shiftWeek(currentWeekRefDate, -1))}
-              className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-colors"
+              className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer"
               title="Semana anterior"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               id="current-week-today-btn"
-              onClick={() => onSetWeekRefDate(todayStr)}
-              className="px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-white rounded-lg transition-colors"
+              onClick={() => onSetWeekRefDate(getTodayDateStr())}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                isCurrentWeek(currentWeekRefDate)
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-700 hover:bg-white/80'
+              }`}
+              title="Sincronizar com o dia certo (Hoje)"
             >
-              Hoje
+              <RotateCcw className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Hoje</span>
             </button>
             <button
               id="next-week-btn"
               onClick={() => onSetWeekRefDate(shiftWeek(currentWeekRefDate, 1))}
-              className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-colors"
+              className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer"
               title="Próxima semana"
             >
               <ChevronRight className="w-5 h-5" />
@@ -200,8 +207,13 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
           </div>
 
           <div>
-            <span className="text-xs font-bold tracking-wider text-indigo-600 uppercase">
-              Visão Semanal
+            <span className="text-xs font-bold tracking-wider text-indigo-600 uppercase flex items-center gap-1.5">
+              <span>Visão Semanal</span>
+              {isCurrentWeek(currentWeekRefDate) && (
+                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-md">
+                  Semana Atual
+                </span>
+              )}
             </span>
             <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
               {weekLabel}
@@ -209,25 +221,25 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
           </div>
         </div>
 
-        {/* Prominent Actions: ESCREVER NO CADERNO & ANOTAÇÕES */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Prominent Actions: ESCREVER NO CADERNO & MINHAS ANOTAÇÕES (Com mesmo tamanho) */}
+        <div className="grid grid-cols-2 gap-2.5 w-full md:w-auto">
           <button
             id="hero-write-notebook-btn"
             onClick={onGoToCaderno}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold text-xs md:text-sm shadow-md shadow-indigo-200 hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            className="w-full md:w-52 h-11 inline-flex items-center justify-center gap-2 px-3 sm:px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold text-xs sm:text-sm shadow-md shadow-indigo-200 hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
           >
             <span className="text-base">✍️</span>
-            <span>Escrever no Caderno</span>
+            <span className="truncate">Escrever no Caderno</span>
           </button>
 
           {onGoToAnotacoes && (
             <button
               id="hero-goto-anotacoes-btn"
               onClick={onGoToAnotacoes}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-semibold text-xs md:text-sm shadow-xs hover:shadow-sm transition-all cursor-pointer"
+              className="w-full md:w-52 h-11 inline-flex items-center justify-center gap-2 px-3 sm:px-4 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-semibold text-xs sm:text-sm shadow-xs hover:shadow-sm transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
               <span className="text-base">📝</span>
-              <span>Minhas Anotações</span>
+              <span className="truncate">Minhas Anotações</span>
             </button>
           )}
         </div>

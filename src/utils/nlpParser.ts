@@ -31,41 +31,51 @@ export interface AnalysisResult {
  */
 export function resolveDateFromPortuguese(text: string, referenceDateStr: string = getTodayDateStr()): { dateStr: string; label: string } {
   const lower = text.toLowerCase();
-  const weekDays = getWeekDays(referenceDateStr);
-  // Week days index: 0 = SEG, 1 = TER, 2 = QUA, 3 = QUI, 4 = SEX, 5 = SÁB, 6 = DOM
+  const todayStr = referenceDateStr;
+  const ref = parseDate(referenceDateStr);
+  const currentDayOfWeek = ref.getDay(); // 0 = Dom, 1 = Seg, 2 = Ter, 3 = Qua, 4 = Qui, 5 = Sex, 6 = Sáb
 
-  if (lower.includes('segunda') || lower.includes('seg')) {
-    return { dateStr: weekDays[0].dateStr, label: 'Segunda-feira' };
-  }
-  if (lower.includes('terça') || lower.includes('terca') || lower.includes('ter')) {
-    return { dateStr: weekDays[1].dateStr, label: 'Terça-feira' };
-  }
-  if (lower.includes('quarta') || lower.includes('qua')) {
-    return { dateStr: weekDays[2].dateStr, label: 'Quarta-feira' };
-  }
-  if (lower.includes('quinta') || lower.includes('qui')) {
-    return { dateStr: weekDays[3].dateStr, label: 'Quinta-feira' };
-  }
-  if (lower.includes('sexta') || lower.includes('sex')) {
-    return { dateStr: weekDays[4].dateStr, label: 'Sexta-feira' };
-  }
-  if (lower.includes('sábado') || lower.includes('sabado') || lower.includes('sab')) {
-    return { dateStr: weekDays[5].dateStr, label: 'Sábado' };
-  }
-  if (lower.includes('domingo') || lower.includes('dom')) {
-    return { dateStr: weekDays[6].dateStr, label: 'Domingo' };
-  }
+  // Helper to find the upcoming weekday (ensures we don't schedule in the past if weekday already passed this week)
+  const getUpcomingWeekday = (targetDay: number, label: string) => {
+    let diff = targetDay - currentDayOfWeek;
+    if (diff < 0) diff += 7;
+    const d = new Date(ref);
+    d.setDate(ref.getDate() + diff);
+    return { dateStr: formatDateStr(d), label };
+  };
+
   if (lower.includes('hoje')) {
-    return { dateStr: referenceDateStr, label: 'Hoje' };
+    return { dateStr: todayStr, label: 'Hoje' };
   }
   if (lower.includes('amanhã') || lower.includes('amanha')) {
-    const d = parseDate(referenceDateStr);
-    d.setDate(d.getDate() + 1);
+    const d = new Date(ref);
+    d.setDate(ref.getDate() + 1);
     return { dateStr: formatDateStr(d), label: 'Amanhã' };
+  }
+  if (lower.includes('segunda') || lower.includes('seg')) {
+    return getUpcomingWeekday(1, 'Segunda-feira');
+  }
+  if (lower.includes('terça') || lower.includes('terca') || lower.includes('ter')) {
+    return getUpcomingWeekday(2, 'Terça-feira');
+  }
+  if (lower.includes('quarta') || lower.includes('qua')) {
+    return getUpcomingWeekday(3, 'Quarta-feira');
+  }
+  if (lower.includes('quinta') || lower.includes('qui')) {
+    return getUpcomingWeekday(4, 'Quinta-feira');
+  }
+  if (lower.includes('sexta') || lower.includes('sex')) {
+    return getUpcomingWeekday(5, 'Sexta-feira');
+  }
+  if (lower.includes('sábado') || lower.includes('sabado') || lower.includes('sab')) {
+    return getUpcomingWeekday(6, 'Sábado');
+  }
+  if (lower.includes('domingo') || lower.includes('dom')) {
+    return getUpcomingWeekday(0, 'Domingo');
   }
 
   // Default to today if not specified
-  return { dateStr: referenceDateStr, label: 'Sem prazo específico' };
+  return { dateStr: todayStr, label: 'Sem prazo específico' };
 }
 
 /**

@@ -48,7 +48,13 @@ async function startServer() {
       }
 
       const client = getGeminiClient();
-      const refDate = referenceDate || "2026-09-11"; // Default reference timestamp
+      const now = new Date();
+      const defaultToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const refDate = referenceDate || defaultToday;
+      const [ry, rm, rd] = refDate.split('-').map(Number);
+      const refDateObj = new Date(ry, rm - 1, rd, 12, 0, 0);
+      const ptWeekdays = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+      const refDayName = ptWeekdays[refDateObj.getDay()];
 
       if (!client) {
         // Return notice that server fallback should be used
@@ -64,9 +70,9 @@ Sua missão é extrair Tarefas com prazos, pessoas e categorias a fazer.
 IMPORTANTE: No Caderno, TUDO o que o usuário escreve deve ser transformado em Tarefas (tasks) para o Planner Semanal. A aba Anotações é separada e independente (não deve ser alimentada pelo Caderno).
 
 Regras fundamentais:
-1. Data de referência de hoje: ${refDate}.
-2. Se o texto fala "quarta", "até quarta", "quarta-feira", calcule a data da quarta-feira correspondente da semana em questão no formato YYYY-MM-DD.
-3. Se fala "segunda", "terça", "quinta", "sexta", "sábado", "domingo", "hoje", "amanhã", converta para a data YYYY-MM-DD correspondente. Se não houver dia explícito, use a data de hoje (${refDate}).
+1. Data de referência de hoje: ${refDate} (${refDayName}).
+2. Se o texto fala "segunda", "terça", "quarta", etc., calcule a data futura mais próxima correspondente no formato YYYY-MM-DD (se o dia da semana já passou nesta semana em relação a hoje, agende para o próximo dia da semana correspondente).
+3. Se falar "hoje", use ${refDate}. Se falar "amanhã", adicione 1 dia. Se não houver dia explícito, use a data de hoje (${refDate}).
 4. Identifique claramente pessoas citadas (ex: Marcelo, Fábio, etc.) no campo "person".
 5. Categorias possíveis: "Trabalho", "Fornecedores", "Estoque", "Vendas", "Reunião", "Financeiro", "Pessoal", "Outro".
 6. Todo e qualquer item deve virar uma tarefa no array "tasks" (com status pendente). Se for um lembrete ou reflexão (ex: "Na próxima compra, lembrar de analisar melhor o giro dos bonés"), crie uma tarefa "Lembrar de analisar melhor o giro dos bonés" associada à data de hoje. Mantenha o array "notes" vazio [].
