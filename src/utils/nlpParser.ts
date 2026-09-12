@@ -133,94 +133,31 @@ export function parseNoteTextLocally(text: string, referenceDateStr: string = ge
   for (const sentence of sentences) {
     const lower = sentence.toLowerCase();
 
-    // Check if it's a pure idea or non-urgent note
-    const isIdea =
-      lower.startsWith('na próxima') ||
-      lower.startsWith('na proxima') ||
-      lower.startsWith('lembrar de') ||
-      lower.includes('ideia:') ||
-      lower.includes('anotação:') ||
-      lower.includes('giro dos') ||
-      lower.includes('pensar em');
-
-    const isChecklist =
-      sentence.includes('- [ ]') ||
-      sentence.includes('[ ]') ||
-      sentence.split('\n').filter((l) => l.trim().startsWith('-') || l.trim().startsWith('*')).length > 1;
-
-    if (isChecklist) {
-      const items = sentence
-        .split('\n')
-        .map((l) => l.replace(/^[-*•]\s*(\[[ xX]\])?\s*/, '').trim())
-        .filter(Boolean);
-      notes.push({
-        type: 'checklist',
-        title: 'Checklist de Verificação',
-        content: sentence,
-        items,
-      });
-      continue;
-    }
-
-    if (isIdea) {
-      notes.push({
-        type: 'ideia',
-        title: sentence.length > 50 ? `${sentence.slice(0, 50)}...` : sentence,
-        content: sentence,
-      });
-      continue;
-    }
-
-    // Check for action triggers
-    const hasAction =
-      lower.includes('verificar') ||
-      lower.includes('mandar') ||
-      lower.includes('pedir') ||
-      lower.includes('preciso') ||
-      lower.includes('conferir') ||
-      lower.includes('atualizar') ||
-      lower.includes('fazer') ||
-      lower.includes('ligar') ||
-      lower.includes('enviar') ||
-      lower.includes('cobrar') ||
-      lower.includes('reunião') ||
-      lower.includes('reuniao') ||
-      lower.includes('resolver');
-
     const dateResolved = resolveDateFromPortuguese(sentence, referenceDateStr);
     const person = extractPerson(sentence);
     const category = detectCategory(sentence);
 
-    if (hasAction || dateResolved.label !== 'Sem prazo específico') {
-      // Clean up title
-      let title = sentence;
-      // If starts with "Segunda preciso verificar...", clean to "Verificar..."
-      title = title.replace(/^(?:segunda|terça|quarta|quinta|sexta|sábado|domingo|hoje|amanhã)[,\s]+(?:preciso\s+|vou\s+)?/i, '');
-      title = title.replace(/^preciso\s+/i, '');
-      title = title.replace(/\s+até\s+(?:segunda|terça|quarta|quinta|sexta|sábado|domingo)[^.]*/i, '');
-      title = title.trim();
-      if (!title) title = sentence;
+    // Clean up title
+    let title = sentence;
+    // If starts with "Segunda preciso verificar...", clean to "Verificar..."
+    title = title.replace(/^(?:segunda|terça|quarta|quinta|sexta|sábado|domingo|hoje|amanhã)[,\s]+(?:preciso\s+|vou\s+)?/i, '');
+    title = title.replace(/^preciso\s+/i, '');
+    title = title.replace(/\s+até\s+(?:segunda|terça|quarta|quinta|sexta|sábado|domingo)[^.]*/i, '');
+    title = title.trim();
+    if (!title) title = sentence;
 
-      // Capitalize first letter
-      title = title.charAt(0).toUpperCase() + title.slice(1);
+    // Capitalize first letter
+    title = title.charAt(0).toUpperCase() + title.slice(1);
 
-      tasks.push({
-        title,
-        person,
-        deadlineText: dateResolved.label,
-        suggestedDate: dateResolved.dateStr,
-        category,
-        priority: lower.includes('urgente') || lower.includes('importante') ? 'alta' : 'media',
-        clarificationQuestion: null,
-      });
-    } else {
-      // General note
-      notes.push({
-        type: 'anotacao',
-        title: sentence.length > 40 ? `${sentence.slice(0, 40)}...` : sentence,
-        content: sentence,
-      });
-    }
+    tasks.push({
+      title,
+      person,
+      deadlineText: dateResolved.label,
+      suggestedDate: dateResolved.dateStr,
+      category,
+      priority: lower.includes('urgente') || lower.includes('importante') ? 'alta' : 'media',
+      clarificationQuestion: null,
+    });
   }
 
   // If nothing was extracted, make a default task or note

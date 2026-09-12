@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Task } from '../types';
+import { Task, TaskStatus } from '../types';
 import { formatPtDate, getWeekdayName, getRelativeDayOffset } from '../utils/dateUtils';
 import {
   X,
@@ -21,6 +21,7 @@ interface TaskDetailModalProps {
   task: Task | null;
   onClose: () => void;
   onToggleStatus: (taskId: string) => void;
+  onSetStatus?: (taskId: string, status: TaskStatus) => void;
   onMoveToToday: (taskId: string) => void;
   onReschedule: (taskId: string, newDate: string) => void;
   onDeleteTask: (taskId: string) => void;
@@ -32,6 +33,7 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   task,
   onClose,
   onToggleStatus,
+  onSetStatus,
   onMoveToToday,
   onReschedule,
   onDeleteTask,
@@ -177,6 +179,64 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                   )}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Status Selection Buttons */}
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 space-y-2">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+              Alterar Status da Tarefa:
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                id="modal-status-pendente"
+                onClick={() => {
+                  if (onSetStatus) onSetStatus(task.id, 'pendente');
+                  else if (task.status !== 'pendente') onToggleStatus(task.id);
+                }}
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                  task.status === 'pendente'
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-amber-50 hover:border-amber-300'
+                }`}
+              >
+                <span>🟡</span>
+                <span>Pendente</span>
+              </button>
+
+              <button
+                type="button"
+                id="modal-status-concluido"
+                onClick={() => {
+                  if (onSetStatus) onSetStatus(task.id, 'concluido');
+                  else if (task.status !== 'concluido') onToggleStatus(task.id);
+                }}
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                  task.status === 'concluido'
+                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-emerald-50 hover:border-emerald-300'
+                }`}
+              >
+                <span>✅</span>
+                <span>Concluído</span>
+              </button>
+
+              <button
+                type="button"
+                id="modal-status-atrasado"
+                onClick={() => {
+                  if (onSetStatus) onSetStatus(task.id, 'atrasado');
+                }}
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                  task.status === 'atrasado'
+                    ? 'bg-rose-600 text-white border-rose-700 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-rose-50 hover:border-rose-300'
+                }`}
+              >
+                <span>🔴</span>
+                <span>Atrasado</span>
+              </button>
             </div>
           </div>
 

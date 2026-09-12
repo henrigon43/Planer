@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Task, NoteItem, NotebookEntry, MainTab, TaskCategory, UserAccount } from './types';
+import { Task, NoteItem, NotebookEntry, MainTab, TaskCategory, UserAccount, TaskStatus } from './types';
 import { INITIAL_TASKS, INITIAL_NOTES, INITIAL_ENTRIES } from './data/initialData';
 import { getTodayDateStr, formatPtDate } from './utils/dateUtils';
 import { analyzeNoteWithAI } from './utils/nlpParser';
@@ -602,6 +602,53 @@ export default function App() {
     }
   };
 
+  const handleSetTaskStatus = (taskId: string, newStatus: TaskStatus) => {
+    const today = getTodayDateStr();
+    const todayFormatted = formatPtDate(today);
+    const nowIso = new Date().toISOString();
+
+    let updatedTask: Task | null = null;
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskId) {
+          const logLine = `${todayFormatted} — ${t.title} — ${newStatus.toUpperCase()}`;
+          updatedTask = {
+            ...t,
+            status: newStatus,
+            completedAt: newStatus === 'concluido' ? nowIso : null,
+            historyLog: [logLine, ...(t.historyLog || [])],
+          };
+          return updatedTask;
+        }
+        return t;
+      })
+    );
+
+    if (updatedTask && activeUser) {
+      saveTaskToCloud(updatedTask, activeUser.id);
+    }
+    if (selectedTask && selectedTask.id === taskId && updatedTask) {
+      setSelectedTask(updatedTask);
+    }
+    showToast(`Status: ${newStatus === 'concluido' ? '✅ Concluído' : newStatus === 'atrasado' ? '🔴 Atrasado' : '🟡 Pendente'}`);
+  };
+
+  const handleQuickAddNoteFromSemana = (content: string) => {
+    if (!activeUser || !content.trim()) return;
+    const clean = content.trim();
+    const newNote: NoteItem = {
+      id: `note-${Date.now()}`,
+      type: 'anotacao',
+      title: clean.length > 40 ? `${clean.slice(0, 40)}...` : clean,
+      content: clean,
+      createdDate: getTodayDateStr(),
+      userId: activeUser.id,
+    };
+    setNotes((prev) => [newNote, ...prev]);
+    saveNoteToCloud(newNote, activeUser.id);
+    showToast('📝 Anotação registrada na aba Anotações!');
+  };
+
   const handleMoveToToday = (taskId: string) => {
     const today = getTodayDateStr();
     let updatedTask: Task | null = null;
@@ -770,6 +817,7 @@ export default function App() {
 
     const result = await analyzeNoteWithAI(rawText, today);
 
+    // Everything written in Caderno becomes Tasks with status: 'pendente'
     const newTasks: Task[] = result.tasks.map((t, idx) => ({
       id: `task-${Date.now()}-${idx}`,
       title: t.title,
@@ -778,62 +826,74 @@ export default function App() {
       targetDate: t.suggestedDate,
       category: t.category,
       priority: t.priority,
-      status: t.suggestedDate < today ? 'atrasado' : 'pendente',
+      status: 'pendente', // Sempre entra como pendente ao adicionar no caderno
       originalNoteId: entryId,
       originalNoteText: rawText,
       createdDate: today,
       userId: activeUser.id,
     }));
 
-    const newNotes: NoteItem[] = result.notes.map((n, idx) => ({
-      id: `note-${Date.now()}-${idx}`,
-      type: n.type,
-      title: n.title,
-      content: n.content,
+    // If any notes were extracted from notebook, convert them into tasks as well
+    const fallbackTasksFromNotes: Task[] = (result.notes || []).map((n, idx) => ({
+      id: `task-note-${Date.now()}-${idx}`,
+      title: n.title || n.content,
+      person: null,
+      deadlineText: 'Hoje',
+      targetDate: today,
+      category: 'Trabalho' as TaskCategory,
+      priority: 'media' as const,
+      status: 'pendente' as TaskStatus,
+      originalNoteId: entryId,
+      originalNoteText: n.content,
       createdDate: today,
-      originalNotebookEntryId: entryId,
-      associatedDate: today,
       userId: activeUser.id,
-      checklistItems: n.items?.map((itemText, i) => ({
-        id: `chk-${Date.now()}-${idx}-${i}`,
-        text: itemText,
-        done: false,
-      })),
     }));
+
+    const allNewTasks: Task[] = newTasks.length > 0 ? newTasks : fallbackTasksFromNotes;
+
+    // If still empty, create a direct task from the raw text
+    if (allNewTasks.length === 0 && rawText.trim()) {
+      allNewTasks.push({
+        id: `task-raw-${Date.now()}`,
+        title: rawText.trim(),
+        person: null,
+        deadlineText: 'Hoje',
+        targetDate: today,
+        category: 'Trabalho',
+        priority: 'media',
+        status: 'pendente',
+        originalNoteId: entryId,
+        originalNoteText: rawText,
+        createdDate: today,
+        userId: activeUser.id,
+      });
+    }
 
     const newEntry: NotebookEntry = {
       id: entryId,
       rawText,
       createdAt: new Date().toISOString(),
       displayDate,
-      createdTasks: newTasks,
-      createdNotes: newNotes,
+      createdTasks: allNewTasks,
+      createdNotes: [], // Anotações é separada, Caderno alimenta somente Tarefas/Planner
       userId: activeUser.id,
     };
 
     setEntries((prev) => [newEntry, ...prev]);
-    if (newTasks.length > 0) {
-      setTasks((prev) => [...newTasks, ...prev]);
-    }
-    if (newNotes.length > 0) {
-      setNotes((prev) => [...newNotes, ...prev]);
+    if (allNewTasks.length > 0) {
+      setTasks((prev) => [...allNewTasks, ...prev]);
     }
 
     try {
       await Promise.allSettled([
         saveEntryToCloud(newEntry, activeUser.id),
-        ...newTasks.map((t) => saveTaskToCloud(t, activeUser.id)),
-        ...newNotes.map((n) => saveNoteToCloud(n, activeUser.id)),
+        ...allNewTasks.map((t) => saveTaskToCloud(t, activeUser.id)),
       ]);
     } catch (err) {
       console.error('Erro salvando no Firestore:', err);
     }
 
-    const toastMsg =
-      newTasks.length > 0
-        ? `✨ Organizado: ${newTasks.length} ${newTasks.length === 1 ? 'tarefa criada' : 'tarefas criadas'} no seu planner!`
-        : `📝 Anotação salva com sucesso!`;
-    showToast(toastMsg);
+    showToast(`✨ Organizado: ${allNewTasks.length} ${allNewTasks.length === 1 ? 'tarefa criada' : 'tarefas criadas'} como pendente no seu planner!`);
   };
 
   const handleConvertToTask = (noteId: string, targetDate: string, category: TaskCategory) => {
@@ -1152,16 +1212,6 @@ export default function App() {
             >
               <LogOutIcon className="w-4 h-4" />
             </button>
-
-            {/* Write shortcut */}
-            <button
-              id="header-escrever-btn"
-              onClick={() => setCurrentTab('caderno')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors shadow-xs cursor-pointer"
-            >
-              <span>✍️</span>
-              <span className="hidden sm:inline">Escrever</span>
-            </button>
           </div>
         </div>
 
@@ -1224,10 +1274,12 @@ export default function App() {
             currentWeekRefDate={currentWeekRefDate}
             onSetWeekRefDate={setCurrentWeekRefDate}
             onToggleTaskStatus={handleToggleTaskStatus}
+            onSetTaskStatus={handleSetTaskStatus}
             onMoveToToday={handleMoveToToday}
             onRescheduleTask={handleRescheduleTask}
             onOpenTaskDetail={setSelectedTask}
             onGoToCaderno={() => setCurrentTab('caderno')}
+            onGoToAnotacoes={() => setCurrentTab('anotacoes')}
             onQuickAddTask={handleQuickAddTask}
             onUpdateTaskTitle={handleUpdateTaskTitle}
           />
@@ -1240,12 +1292,14 @@ export default function App() {
             notes={notes}
             onProcessNote={handleProcessNote}
             onToggleTaskStatus={handleToggleTaskStatus}
+            onSetTaskStatus={handleSetTaskStatus}
             onOpenTaskDetail={setSelectedTask}
             onGoToSemana={() => setCurrentTab('semana')}
             onDeleteEntry={handleDeleteEntry}
             highlightEntryId={highlightEntryId}
             onUpdateEntryText={handleUpdateNotebookEntry}
             onUpdateTaskTitle={handleUpdateTaskTitle}
+            onRescheduleTask={handleRescheduleTask}
           />
         )}
 
@@ -1296,6 +1350,7 @@ export default function App() {
         task={selectedTask}
         onClose={() => setSelectedTask(null)}
         onToggleStatus={handleToggleTaskStatus}
+        onSetStatus={handleSetTaskStatus}
         onMoveToToday={handleMoveToToday}
         onReschedule={handleRescheduleTask}
         onDeleteTask={handleDeleteTask}

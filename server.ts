@@ -60,16 +60,17 @@ async function startServer() {
 
       const prompt = `Você é o cérebro do aplicativo "Caderno & Planner Inteligente".
 O usuário escreve de forma livre, natural e espontânea em seu caderno de trabalho (em português).
-Sua missão é extrair com precisão cirúrgica o que são Tarefas a fazer e o que são Anotações/Ideias/Checklists.
+Sua missão é extrair Tarefas com prazos, pessoas e categorias a fazer.
+IMPORTANTE: No Caderno, TUDO o que o usuário escreve deve ser transformado em Tarefas (tasks) para o Planner Semanal. A aba Anotações é separada e independente (não deve ser alimentada pelo Caderno).
 
 Regras fundamentais:
-1. Data de referência de hoje: ${refDate} (uma sexta-feira).
+1. Data de referência de hoje: ${refDate}.
 2. Se o texto fala "quarta", "até quarta", "quarta-feira", calcule a data da quarta-feira correspondente da semana em questão no formato YYYY-MM-DD.
-3. Se fala "segunda", "terça", "quinta", "sexta", "sábado", "domingo", "hoje", "amanhã", converta para a data YYYY-MM-DD correspondente.
+3. Se fala "segunda", "terça", "quinta", "sexta", "sábado", "domingo", "hoje", "amanhã", converta para a data YYYY-MM-DD correspondente. Se não houver dia explícito, use a data de hoje (${refDate}).
 4. Identifique claramente pessoas citadas (ex: Marcelo, Fábio, etc.) no campo "person".
 5. Categorias possíveis: "Trabalho", "Fornecedores", "Estoque", "Vendas", "Reunião", "Financeiro", "Pessoal", "Outro".
-6. Se o usuário escreveu algo que é reflexão, ideia futura, dica ou lista e NÃO uma tarefa imediata (ex: "Na próxima compra, lembrar de analisar melhor o giro dos bonés"), classifique como anotação do tipo "ideia", "anotacao", "importante" ou "checklist".
-7. Se houver alguma ambiguidade real, preencha o campo "clarificationQuestion" (ex: "Prefere agendar para a quarta desta semana ou da próxima?"). Caso contrário, deixe nulo ou string vazia.
+6. Todo e qualquer item deve virar uma tarefa no array "tasks" (com status pendente). Se for um lembrete ou reflexão (ex: "Na próxima compra, lembrar de analisar melhor o giro dos bonés"), crie uma tarefa "Lembrar de analisar melhor o giro dos bonés" associada à data de hoje. Mantenha o array "notes" vazio [].
+7. Se houver alguma ambiguidade real, preencha o campo "clarificationQuestion". Caso contrário, deixe nulo ou string vazia.
 8. Retorne SEMPRE em JSON válido conforme o esquema.
 
 Texto do caderno:

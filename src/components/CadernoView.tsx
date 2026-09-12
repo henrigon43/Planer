@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NotebookEntry, Task, NoteItem } from '../types';
+import { NotebookEntry, Task, NoteItem, TaskStatus } from '../types';
 import { formatPtDate, getTodayDateStr } from '../utils/dateUtils';
 import { AppLogo } from './AppLogo';
 import {
@@ -17,6 +17,9 @@ import {
   Trash2,
   Info,
   HelpCircle,
+  PenLine,
+  Check,
+  X,
 } from 'lucide-react';
 
 interface CadernoViewProps {
@@ -25,10 +28,14 @@ interface CadernoViewProps {
   notes: NoteItem[];
   onProcessNote: (rawText: string) => Promise<void>;
   onToggleTaskStatus: (taskId: string) => void;
+  onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
   onOpenTaskDetail: (task: Task) => void;
   onGoToSemana: () => void;
   onDeleteEntry: (entryId: string) => void;
   highlightEntryId?: string | null;
+  onUpdateEntryText?: (entryId: string, newText: string) => Promise<void>;
+  onUpdateTaskTitle?: (taskId: string, newTitle: string) => void;
+  onRescheduleTask?: (taskId: string, newDate: string) => void;
 }
 
 export const CadernoView: React.FC<CadernoViewProps> = ({
@@ -37,24 +44,38 @@ export const CadernoView: React.FC<CadernoViewProps> = ({
   notes,
   onProcessNote,
   onToggleTaskStatus,
+  onSetTaskStatus,
   onOpenTaskDetail,
   onGoToSemana,
   onDeleteEntry,
   highlightEntryId,
+  onUpdateEntryText,
+  onUpdateTaskTitle,
+  onRescheduleTask,
 }) => {
   const [noteText, setNoteText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [searchHistory, setSearchHistory] = useState('');
 
+  // Inline task editing in Caderno history
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTaskTitle, setEditingTaskTitle] = useState('');
+
   const todayStr = getTodayDateStr();
   const displayTodayPt = formatPtDate(todayStr);
 
-  const samplePrompts = [
-    'Verificar pedido da Nike e mandar para o Marcelo até quarta.',
-    'Pedir para o fornecedor verificar a previsão do pedido Vans. Preciso resolver isso até sexta.',
-    'Segunda preciso verificar os pedidos da Puma e mandar a posição para o Fábio.',
-    'Na próxima compra, lembrar de analisar melhor o giro dos bonés.',
-  ];
+  const handleStartEditTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditingTaskTitle(task.title);
+  };
+
+  const handleSaveTaskTitle = (taskId: string) => {
+    if (editingTaskTitle.trim() && onUpdateTaskTitle) {
+      onUpdateTaskTitle(taskId, editingTaskTitle.trim());
+    }
+    setEditingTaskId(null);
+    setEditingTaskTitle('');
+  };
 
   const handleProcess = async () => {
     if (!noteText.trim() || isProcessing) return;
@@ -123,36 +144,16 @@ export const CadernoView: React.FC<CadernoViewProps> = ({
           <div className="relative">
             <textarea
               id="notebook-textarea"
-              rows={4}
+              rows={7}
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Escreva livremente aqui... Ex: 'Verificar pedido da Nike e mandar para o Marcelo até quarta.'"
+              placeholder="Escreva livremente aqui o que precisa ser feito... Ex: 'Verificar pedido da Nike e mandar para o Marcelo até quarta.'"
               className="w-full bg-transparent text-slate-800 font-sans text-base leading-relaxed placeholder:text-slate-400 border-0 focus:ring-0 resize-y p-0 outline-hidden"
               style={{
                 backgroundImage: 'repeating-linear-gradient(transparent, transparent 29px, #e7e0d3 30px)',
                 lineHeight: '30px',
               }}
             />
-          </div>
-
-          {/* Quick prompt suggestions chips */}
-          <div>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
-              💡 Exemplos rápidos para testar o entendimento da IA:
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {samplePrompts.map((prompt, i) => (
-                <button
-                  key={i}
-                  id={`sample-prompt-${i}`}
-                  onClick={() => setNoteText(prompt)}
-                  className="text-xs bg-white hover:bg-amber-100/70 text-slate-700 hover:text-amber-900 border border-amber-200/90 rounded-lg px-2.5 py-1 text-left transition-colors truncate max-w-full"
-                  title="Clique para colar no caderno"
-                >
-                  "{prompt}"
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Action Row */}
@@ -277,10 +278,12 @@ export const CadernoView: React.FC<CadernoViewProps> = ({
                           const isDone = t.status === 'concluido';
                           const isOver = t.status === 'atrasado';
 
+                          const isEditingThis = editingTaskId === t.id;
+
                           return (
                             <div
                               key={t.id}
-                              className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                              className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                                 isDone
                                   ? 'bg-emerald-50/60 border-emerald-200'
                                   : isOver
@@ -288,35 +291,100 @@ export const CadernoView: React.FC<CadernoViewProps> = ({
                                   : 'bg-indigo-50/40 border-indigo-200'
                               }`}
                             >
-                              <div className="flex items-start gap-3">
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
                                 <button
                                   id={`history-task-check-${t.id}`}
-                                  onClick={() => onToggleTaskStatus(t.id)}
-                                  className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                                  onClick={() => {
+                                    if (onSetTaskStatus) {
+                                      onSetTaskStatus(t.id, isDone ? 'pendente' : 'concluido');
+                                    } else {
+                                      onToggleTaskStatus(t.id);
+                                    }
+                                  }}
+                                  className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-colors shrink-0 cursor-pointer ${
                                     isDone
                                       ? 'bg-emerald-600 border-emerald-600 text-white'
                                       : 'border-slate-300 hover:border-emerald-500 bg-white'
                                   }`}
-                                  title={isDone ? 'Reabrir' : 'Marcar concluída'}
+                                  title={isDone ? 'Marcar como Pendente' : 'Marcar como Concluído'}
                                 >
                                   {isDone && <CheckCircle2 className="w-3.5 h-3.5" />}
                                 </button>
 
-                                <div>
-                                  <h3
-                                    onClick={() => onOpenTaskDetail(t)}
-                                    className={`text-sm font-bold cursor-pointer hover:text-indigo-600 ${
-                                      isDone ? 'line-through text-slate-400' : 'text-slate-900'
-                                    }`}
-                                  >
-                                    {t.title}
-                                  </h3>
+                                <div className="flex-1 min-w-0">
+                                  {isEditingThis ? (
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                      <input
+                                        type="text"
+                                        autoFocus
+                                        value={editingTaskTitle}
+                                        onChange={(e) => setEditingTaskTitle(e.target.value)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleSaveTaskTitle(t.id);
+                                          if (e.key === 'Escape') setEditingTaskId(null);
+                                        }}
+                                        className="flex-1 text-sm font-bold p-1.5 border-2 border-indigo-400 rounded-lg bg-white text-slate-900 focus:outline-hidden"
+                                        placeholder="Editar título da tarefa..."
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveTaskTitle(t.id)}
+                                        className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                                        title="Salvar alteração"
+                                      >
+                                        <Check className="w-3.5 h-3.5" />
+                                        <span>Salvar</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingTaskId(null)}
+                                        className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs cursor-pointer shrink-0"
+                                        title="Cancelar"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <h3
+                                        onClick={() => onOpenTaskDetail(t)}
+                                        className={`text-sm font-bold cursor-pointer hover:text-indigo-600 truncate ${
+                                          isDone ? 'line-through text-slate-400' : 'text-slate-900'
+                                        }`}
+                                        title="Clique para ver detalhes"
+                                      >
+                                        {t.title}
+                                      </h3>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartEditTask(t)}
+                                        className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors shrink-0 cursor-pointer"
+                                        title="Editar texto da tarefa"
+                                      >
+                                        <PenLine className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  )}
 
                                   <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
                                     <span className="text-slate-600 flex items-center gap-1">
                                       <Calendar className="w-3 h-3 text-slate-400" />
                                       Prazo: <strong className="text-slate-800">{t.deadlineText}</strong> ({formatPtDate(t.targetDate)})
                                     </span>
+
+                                    {onRescheduleTask && (
+                                      <input
+                                        type="date"
+                                        defaultValue={t.targetDate}
+                                        onChange={(e) => {
+                                          if (e.target.value) {
+                                            onRescheduleTask(t.id, e.target.value);
+                                          }
+                                        }}
+                                        className="text-[11px] py-0.5 px-1.5 border border-slate-200 rounded bg-white text-slate-700 hover:border-indigo-300 cursor-pointer"
+                                        title="Mudar data da tarefa"
+                                      />
+                                    )}
 
                                     {t.person && (
                                       <span className="text-slate-600 flex items-center gap-1">
@@ -333,23 +401,58 @@ export const CadernoView: React.FC<CadernoViewProps> = ({
                                 </div>
                               </div>
 
-                              {/* Status Tag and Planner History Record */}
-                              <div className="flex items-center gap-2 self-end sm:self-center">
-                                <span
-                                  className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                                    isDone
-                                      ? 'bg-emerald-100 text-emerald-800'
-                                      : isOver
-                                      ? 'bg-rose-100 text-rose-800'
-                                      : 'bg-blue-100 text-blue-800'
+                              {/* Status Pills / Selector & Details */}
+                              <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onSetTaskStatus) onSetTaskStatus(t.id, 'pendente');
+                                    else if (isDone) onToggleTaskStatus(t.id);
+                                  }}
+                                  className={`text-[11px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer ${
+                                    t.status === 'pendente'
+                                      ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-900'
                                   }`}
+                                  title="Marcar como Pendente"
                                 >
-                                  {isDone ? '✅ Concluído' : isOver ? '🔴 Atrasado' : '🔵 Pendente'}
-                                </span>
+                                  🟡 Pendente
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onSetTaskStatus) onSetTaskStatus(t.id, 'concluido');
+                                    else if (!isDone) onToggleTaskStatus(t.id);
+                                  }}
+                                  className={`text-[11px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer ${
+                                    t.status === 'concluido'
+                                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-emerald-50 hover:text-emerald-900'
+                                  }`}
+                                  title="Marcar como Concluído"
+                                >
+                                  ✅ Concluído
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (onSetTaskStatus) onSetTaskStatus(t.id, 'atrasado');
+                                  }}
+                                  className={`text-[11px] font-bold px-2 py-1 rounded-lg border transition-all cursor-pointer ${
+                                    t.status === 'atrasado'
+                                      ? 'bg-rose-600 text-white border-rose-700 shadow-2xs'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-900'
+                                  }`}
+                                  title="Marcar como Atrasado"
+                                >
+                                  🔴 Atrasado
+                                </button>
 
                                 <button
                                   onClick={() => onOpenTaskDetail(t)}
-                                  className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold p-1"
+                                  className="text-xs text-indigo-600 hover:text-indigo-800 font-bold px-2 py-1 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   Detalhes
                                 </button>

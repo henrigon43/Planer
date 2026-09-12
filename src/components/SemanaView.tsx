@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Task, NoteItem } from '../types';
+import { Task, NoteItem, TaskStatus } from '../types';
 import {
   getWeekDays,
   getWeekLabel,
@@ -27,6 +27,11 @@ import {
   CalendarClock,
   History,
   PenLine,
+  Share2,
+  Mail,
+  MessageCircle,
+  Copy,
+  X,
 } from 'lucide-react';
 
 interface SemanaViewProps {
@@ -35,10 +40,12 @@ interface SemanaViewProps {
   currentWeekRefDate: string;
   onSetWeekRefDate: (dateStr: string) => void;
   onToggleTaskStatus: (taskId: string) => void;
+  onSetTaskStatus?: (taskId: string, status: TaskStatus) => void;
   onMoveToToday: (taskId: string) => void;
   onRescheduleTask: (taskId: string, newDate: string) => void;
   onOpenTaskDetail: (task: Task) => void;
   onGoToCaderno: () => void;
+  onGoToAnotacoes?: () => void;
   onQuickAddTask: (title: string, targetDate: string) => void;
   onUpdateTaskTitle?: (taskId: string, newTitle: string) => void;
 }
@@ -49,10 +56,12 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
   currentWeekRefDate,
   onSetWeekRefDate,
   onToggleTaskStatus,
+  onSetTaskStatus,
   onMoveToToday,
   onRescheduleTask,
   onOpenTaskDetail,
   onGoToCaderno,
+  onGoToAnotacoes,
   onQuickAddTask,
   onUpdateTaskTitle,
 }) => {
@@ -62,6 +71,14 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
   const [overdueFilter, setOverdueFilter] = useState<'all' | 'previous_week' | 'this_week'>('all');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState<string>('');
+
+  // Share modal state
+  const [shareDayData, setShareDayData] = useState<{
+    dateStr: string;
+    shortDay: string;
+    dayNum: number;
+  } | null>(null);
+  const [copiedShareFeedback, setCopiedShareFeedback] = useState(false);
 
   const handleStartEditTask = (e: React.MouseEvent, t: Task) => {
     e.stopPropagation();
@@ -192,63 +209,63 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
           </div>
         </div>
 
-        {/* Big Prominent Action: ESCREVER NO CADERNO */}
-        <button
-          id="hero-write-notebook-btn"
-          onClick={onGoToCaderno}
-          className="inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold text-sm shadow-md shadow-indigo-200 hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0"
-        >
-          <span className="text-lg">✍️</span>
-          <span>Escrever no Caderno</span>
-        </button>
+        {/* Prominent Actions: ESCREVER NO CADERNO & ANOTAÇÕES */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            id="hero-write-notebook-btn"
+            onClick={onGoToCaderno}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold text-xs md:text-sm shadow-md shadow-indigo-200 hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+          >
+            <span className="text-base">✍️</span>
+            <span>Escrever no Caderno</span>
+          </button>
+
+          {onGoToAnotacoes && (
+            <button
+              id="hero-goto-anotacoes-btn"
+              onClick={onGoToAnotacoes}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-semibold text-xs md:text-sm shadow-xs hover:shadow-sm transition-all cursor-pointer"
+            >
+              <span className="text-base">📝</span>
+              <span>Minhas Anotações</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Week Summary Stats Card */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Week Summary Stats Card: Only Concluídas, Pendentes, Atrasadas (Progresso removed) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-3.5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
+          <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-base">
             ✅
           </div>
           <div>
             <p className="text-xl font-black text-emerald-900">{totalCompleted}</p>
-            <p className="text-xs font-medium text-emerald-700">concluídas</p>
+            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Concluídos</p>
           </div>
         </div>
 
         <div className="bg-amber-50/70 border border-amber-200/70 rounded-xl p-3.5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 font-bold">
+          <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center text-amber-700 font-bold text-base">
             🟡
           </div>
           <div>
             <p className="text-xl font-black text-amber-900">{totalPending}</p>
-            <p className="text-xs font-medium text-amber-700">pendentes</p>
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Pendentes</p>
           </div>
         </div>
 
         <div className="bg-rose-50/70 border border-rose-200/70 rounded-xl p-3.5 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center text-rose-700 font-bold">
+          <div className="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center text-rose-700 font-bold text-base">
             🔴
           </div>
           <div>
             <p className="text-xl font-black text-rose-900">{totalOverdue}</p>
-            <p className="text-xs font-medium text-rose-700">
+            <p className="text-xs font-semibold text-rose-700 uppercase tracking-wide">
               {previousWeekTasks.length > 0
                 ? `${previousWeekTasks.length} da semana anterior`
-                : 'atrasadas'}
+                : 'Atrasados'}
             </p>
-          </div>
-        </div>
-
-        <div className="bg-indigo-50/70 border border-indigo-200/70 rounded-xl p-3.5 flex flex-col justify-center">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-indigo-700">📊 Progresso</span>
-            <span className="text-sm font-black text-indigo-950">{completionPercentage}%</span>
-          </div>
-          <div className="w-full bg-indigo-100/80 rounded-full h-2 overflow-hidden">
-            <div
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-500"
-              style={{ width: `${completionPercentage}%` }}
-            />
           </div>
         </div>
       </div>
@@ -797,11 +814,133 @@ export const SemanaView: React.FC<SemanaViewProps> = ({
                     <Plus className="w-3 h-3" /> Adicionar
                   </button>
                 )}
+
+                {/* Botão de Compartilhar Pendências do Dia */}
+                <button
+                  id={`share-day-btn-${day.shortDay.toLowerCase()}`}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShareDayData({
+                      dateStr: day.dateStr,
+                      shortDay: day.shortDay,
+                      dayNum: day.dayNum,
+                    });
+                    setCopiedShareFeedback(false);
+                  }}
+                  className="w-full py-1 text-[11px] font-semibold text-slate-500 hover:text-indigo-700 hover:bg-indigo-50/80 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer mt-1 border border-dashed border-slate-200 hover:border-indigo-300"
+                  title="Compartilhar lista de pendências deste dia"
+                >
+                  <Share2 className="w-3 h-3 text-indigo-600" />
+                  <span>Compartilhar</span>
+                </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* 📤 POPUP DE COMPARTILHAR PENDÊNCIAS DO DIA */}
+      {shareDayData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider block">
+                  Compartilhar Pendências
+                </span>
+                <h3 className="text-base font-black text-slate-900 mt-0.5">
+                  {shareDayData.shortDay} ({formatPtDate(shareDayData.dateStr)})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShareDayData(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content preview */}
+            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-xs space-y-2">
+              <p className="font-bold text-slate-700">
+                Prévia da mensagem formatada:
+              </p>
+              {(() => {
+                const dayPendingTasks = tasks.filter(
+                  (t) => t.targetDate === shareDayData.dateStr && t.status !== 'concluido'
+                );
+
+                const shareText = dayPendingTasks.length > 0
+                  ? `📋 Pendências de ${shareDayData.shortDay} (${formatPtDate(shareDayData.dateStr)}):\n` +
+                    dayPendingTasks.map((t) => `- ${t.title}`).join('\n')
+                  : `✅ Todas as tarefas de ${shareDayData.shortDay} (${formatPtDate(shareDayData.dateStr)}) estão concluídas!`;
+
+                return (
+                  <>
+                    <pre className="whitespace-pre-wrap font-sans text-slate-800 bg-white p-3 rounded-lg border border-slate-200/80 leading-relaxed text-xs">
+                      {shareText}
+                    </pre>
+
+                    {dayPendingTasks.length === 0 && (
+                      <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        Nenhuma pendência para este dia.
+                      </p>
+                    )}
+
+                    {/* Action buttons: WhatsApp and E-mail */}
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <a
+                        href={`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>WhatsApp</span>
+                      </a>
+
+                      <a
+                        href={`mailto:?subject=${encodeURIComponent(`Pendências de ${shareDayData.shortDay} (${formatPtDate(shareDayData.dateStr)})`)}&body=${encodeURIComponent(shareText)}`}
+                        className="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+                      >
+                        <Mail className="w-4 h-4" />
+                        <span>E-mail</span>
+                      </a>
+                    </div>
+
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(shareText);
+                          setCopiedShareFeedback(true);
+                          setTimeout(() => setCopiedShareFeedback(false), 2000);
+                        }}
+                        className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        {copiedShareFeedback ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="text-emerald-700 font-bold">Copiado para área de transferência!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Copiar texto das pendências</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
